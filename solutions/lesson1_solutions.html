@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research - Lesson 1 Solutions: MacOS Fundamentals</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+    
+    <!-- Custom JS -->
+    <script src="../js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="../lessons/lesson1.html">1. MacOS Fundamentals</a></li>
+                <li><a href="../lessons/lesson2.html">2. Objective-C Primer</a></li>
+                <li><a href="../lessons/lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="../lessons/lesson4.html">4. Development Environment</a></li>
+                <li><a href="../lessons/lesson5.html">5. Reverse Engineering</a></li>
+                <li><a href="../lessons/lesson6.html">6. Exploit Development</a></li>
+                <li><a href="../lessons/lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="../lessons/lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="../lessons/lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>Lesson 1 Solutions: MacOS Fundamentals</h1>
+        
+        <div class="introduction">
+            <p>This guide provides detailed solutions for the hands-on exercises in Lesson 1. Each section includes command execution steps, expected outputs, thorough explanations, and answers to the exercise questions.</p>
+        </div>
+        
+        <h2>Exercise 1: Exploring System Architecture</h2>
+        
+        <p>In this exercise, you identified and analyzed key system components of your macOS installation.</p>
+        
+        <h3>Command Execution and Expected Output</h3>
+        
+        <h4>System Version Information</h4>
+        
+<pre><code class="language-bash">sw_vers</code></pre>
+        
+        <p>Expected output similar to:</p>
+        
+<pre><code>ProductName:		macOS
+ProductVersion:		13.2.1
+BuildVersion:		22D68</code></pre>
+        
+        <p>This command displays the macOS version details. The output will vary depending on your specific macOS version. The ProductVersion shows the major.minor.patch version of your macOS installation, while BuildVersion provides the specific build identifier.</p>
+        
+        <h4>Kernel Version Information</h4>
+        
+<pre><code class="language-bash">uname -a</code></pre>
+        
+        <p>Expected output similar to:</p>
+        
+<pre><code>Darwin MacBook-Pro.local 22.3.0 Darwin Kernel Version 22.3.0: Mon Jan 30 20:40:17 PST 2023; root:xnu-8792.81.3~2/RELEASE_ARM64_T8112 arm64</code></pre>
+        
+        <p>The output provides comprehensive kernel information:</p>
+        <ul>
+            <li>Darwin: The name of the core Unix-based operating system</li>
+            <li>Kernel Version: The specific XNU kernel version number</li>
+            <li>Build date and time</li>
+            <li>Architecture (e.g., arm64 for Apple Silicon, x86_64 for Intel)</li>
+        </ul>
+        
+        <h4>Hardware Information</h4>
+        
+<pre><code class="language-bash">system_profiler SPHardwareDataType</code></pre>
+        
+        <p>Expected output includes:</p>
+        
+<pre><code>Hardware:
+
+    Hardware Overview:
+
+      Model Name: MacBook Pro
+      Model Identifier: MacBookPro18,3
+      Chip: Apple M1 Pro
+      Total Number of Cores: 10 (8 performance and 2 efficiency)
+      Memory: 16 GB
+      System Firmware Version: 7459.141.1
+      Serial Number: [redacted]
+      Hardware UUID: [redacted]</code></pre>
+        
+        <p>This provides detailed hardware specifications of your Mac, including model information, processor type, memory, and firmware version.</p>
+        
+        <h4>Kernel Extensions</h4>
+        
+<pre><code class="language-bash">kextstat | sort</code></pre>
+        
+        <p>Expected output (abbreviated):</p>
+        
+<pre><code>Index Refs Address            Size       Wired      Name (Version) UUID &lt;Linked Against&gt;
+  120    0 0xffffff7f83c90000 0x21000    0x21000    com.apple.filesystems.apfs (1677.81.1) 47B...
+  129    0 0xffffff7f83b40000 0x6000     0x6000     com.apple.driver.AppleAPFSUserClient (1677.81.1) F2...
+  142    0 0xffffff7f83cb1000 0x9000     0x9000     com.apple.iokit.IOUSBFamily (900.4.2) BD...</code></pre>
+        
+        <p>This command lists all loaded kernel extensions, sorted alphabetically. Each line represents a KEXT with:</p>
+        <ul>
+            <li>Index number</li>
+            <li>Reference count (how many other KEXTs depend on it)</li>
+            <li>Memory address</li>
+            <li>Size in memory</li>
+            <li>Name and version</li>
+            <li>UUID</li>
+        </ul>
+        
+        <p>Count the total number of lines (excluding the header) to determine how many KEXTs are loaded.</p>
+        
+        <h4>Process Hierarchy</h4>
+        
+<pre><code class="language-bash">ps -axo pid,ppid,user,command | less</code></pre>
+        
+        <p>This displays all running processes with their process ID (PID), parent process ID (PPID), user, and the command that started them. Use this to understand the process hierarchy—how processes relate to each other via parent-child relationships.</p>
+        
+        <h3>Solutions to Exercise 1 Questions</h3>
+        
+        <ol>
+            <li>
+                <strong>What version of macOS are you running?</strong>
+                <p>The macOS version is displayed in the output of <code>sw_vers</code> under "ProductVersion." For example, "13.2.1" would indicate macOS Ventura 13.2.1.</p>
+            </li>
+            <li>
+                <strong>How many kernel extensions are loaded?</strong>
+                <p>Count the number of lines in the output of <code>kextstat | sort</code> (excluding the header line). On modern macOS systems, you typically see between 120-180 kernel extensions loaded by default.</p>
+            </li>
+            <li>
+                <strong>Identify three third-party kernel extensions (if any).</strong>
+                <p>Third-party KEXTs are those not starting with "com.apple." Common examples include:</p>
+                <ul>
+                    <li>com.objective-see.lulu (LuLu firewall)</li>
+                    <li>com.cycling74.driver.Soundflower (Soundflower audio)</li>
+                    <li>org.virtualbox.kext.VBoxDrv (VirtualBox)</li>
+                </ul>
+                <p>If your system has no third-party KEXTs, you should note that all loaded KEXTs are Apple-signed, which is increasingly common in modern macOS versions due to security restrictions.</p>
+            </li>
+            <li>
+                <strong>What is the parent process ID of Terminal or your preferred shell?</strong>
+                <p>To find this, look for your Terminal process in the output of <code>ps -axo pid,ppid,user,command</code>. For example:</p>
+<pre><code>502  497  myuser  /Applications/Utilities/Terminal.app/Contents/MacOS/Terminal</code></pre>
+                <p>Here, 497 would be the PPID (parent process ID). The parent process is typically launchd (for Terminal.app) or Terminal itself (for the shell within Terminal).</p>
+            </li>
+        </ol>
+        
+        <h2>Exercise 2: File System Exploration</h2>
+        
+        <p>This exercise helps you understand security-relevant file system locations and permissions.</p>
+        
+        <h3>Command Execution and Expected Output</h3>
+        
+        <h4>Examining Protected System Directories</h4>
+        
+<pre><code class="language-bash">ls -la /System/Library/CoreServices/</code></pre>
+        
+        <p>Expected output (partial):</p>
+        
+<pre><code>drwxr-xr-x   191 root  wheel    6112 Feb  3 21:34 .
+drwxr-xr-x    86 root  wheel    2752 Feb  3 21:19 ..
+-rw-r--r--     1 root  wheel    6148 Jan 19 20:23 .DS_Store
+-rwxr-xr-x     1 root  wheel    5543 Jan 19 03:01 AOS
+-rwxr-xr-x     1 root  wheel   23248 Jan 19 03:01 AWARESupport
+-rwxr-xr-x     1 root  wheel   44080 Jan 19 13:44 AddPrinter</code></pre>
+        
+        <p>This shows the contents of one of macOS's protected system directories. Note that most files are owned by <code>root:wheel</code> with generally restrictive permissions. System Integrity Protection (SIP) prevents these files from being modified even by root.</p>
+        
+        <h4>Examining Launch Daemons</h4>
+        
+<pre><code class="language-bash">ls -la /Library/LaunchDaemons/</code></pre>
+        
+        <p>Expected output varies but might include:</p>
+        
+<pre><code>total 128
+drwxr-xr-x  17 root  wheel   544 Feb  7 11:12 .
+drwxr-xr-x  69 root  wheel  2208 Feb  7 01:43 ..
+-rw-r--r--   1 root  wheel   672 Jul 21  2022 com.adobe.fpsaud.plist
+-rw-r--r--   1 root  wheel   647 May 28  2022 com.jamf.management.daemon.plist
+-rw-r--r--   1 root  wheel   599 Oct 12  2022 com.microsoft.autoupdate.helper.plist</code></pre>
+        
+        <p>These files control which services start at boot time. Note the permission pattern: typically owned by root:wheel with permissions set to -rw-r--r-- (644), making them readable by all but writable only by root.</p>
+        
+        <h4>Finding Setuid Binaries</h4>
+        
+<pre><code class="language-bash">sudo find /usr -type f -perm -4000 -ls</code></pre>
+        
+        <p>Expected output (partial):</p>
+        
+<pre><code>16777357   48 -r-sr-xr-x    1 root     wheel      45776 Jan 19 03:19 /usr/bin/login
+16777452   32 -r-sr-xr-x    1 root     wheel      32528 Jan 19 03:19 /usr/bin/passwd
+16777472   32 -r-sr-xr-x    1 root     wheel      30448 Jan 19 03:19 /usr/bin/quota
+16777473   64 -r-sr-xr-x    1 root     wheel      63696 Jan 19 03:19 /usr/bin/rcp
+16777476   40 -r-sr-xr-x    1 root     wheel      39760 Jan 19 03:19 /usr/bin/rlogin</code></pre>
+        
+        <p>This command finds files with the setuid bit set (runs with the owner's permissions rather than the user's). These are security-sensitive binaries since they execute with elevated privileges. The 's' in the permissions (replacing the normal 'x') indicates the setuid bit.</p>
+        
+        <h4>Examining User's Library Folder</h4>
+        
+<pre><code class="language-bash">ls -la ~/Library/</code></pre>
+        
+        <p>This shows the contents of your user's Library folder, where application preferences, caches, and support files are stored. This is one of the most important locations for user-specific configuration data.</p>
+        
+        <h3>Solutions to Exercise 2 Questions</h3>
+        
+        <ol>
+            <li>
+                <strong>What permissions do launch daemon plist files have?</strong>
+                <p>Launch daemon plist files typically have permissions set to <code>-rw-r--r--</code> (644), meaning:</p>
+                <ul>
+                    <li>Owner (root): read and write</li>
+                    <li>Group (wheel): read only</li>
+                    <li>Others: read only</li>
+                </ul>
+                <p>This permission model ensures that only root can modify these files, while allowing other users to read them.</p>
+            </li>
+            <li>
+                <strong>How many setuid binaries did you find?</strong>
+                <p>Count the number of lines in the output of the <code>find</code> command. A typical macOS installation has between 20-35 setuid binaries in the /usr directory. Each of these represents a potential privilege escalation vector if vulnerable.</p>
+            </li>
+            <li>
+                <strong>What files in your home directory have extended attributes?</strong>
+                <p>To find files with extended attributes:</p>
+<pre><code class="language-bash">ls -la@ ~/Library/ | grep "@"</code></pre>
+                <p>Files with extended attributes will show a number in the @ column of the output. Common examples include files downloaded from the internet (with the com.apple.quarantine attribute) or documents with resource forks.</p>
+            </li>
+            <li>
+                <strong>Can you identify any quarantined files?</strong>
+                <p>To find quarantined files:</p>
+<pre><code class="language-bash">find ~/ -exec xattr -l {} \; 2>/dev/null | grep -B 1 "com.apple.quarantine"</code></pre>
+                <p>Quarantined files are those downloaded from the internet and marked with a special extended attribute that causes Gatekeeper to check them before execution. Applications distributed outside the App Store typically have this attribute when first downloaded.</p>
+            </li>
+        </ol>
+        
+        <h2>Exercise 3: Process Analysis</h2>
+        
+        <p>This exercise shows how to monitor and analyze process behavior.</p>
+        
+        <h3>Command Execution and Expected Output</h3>
+        
+        <h4>Starting a Background Process</h4>
+        
+<pre><code class="language-bash">sleep 3600 &</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>[1] 1234</code></pre>
+        
+        <p>This starts the <code>sleep</code> command as a background process, which will do nothing for 3600 seconds (1 hour). The number displayed is the job number, and the number after that is the process ID (PID).</p>
+        
+        <h4>Finding the Process ID</h4>
+        
+<pre><code class="language-bash">ps -ef | grep sleep</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>username  1234  5678   0  9:30AM ttys001    0:00.00 sleep 3600
+username  1235  5678   0  9:30AM ttys001    0:00.00 grep sleep</code></pre>
+        
+        <p>The first line shows your sleep process with its PID (1234 in this example). Note the second line is just the grep command itself, which contains "sleep" in its command line.</p>
+        
+        <h4>Monitoring Open Files and Sockets</h4>
+        
+<pre><code class="language-bash">sudo lsof -p 1234</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>COMMAND  PID     USER   FD     TYPE DEVICE  SIZE/OFF     NODE NAME
+sleep   1234 username  cwd      DIR    1,4      1088 58720385 /Users/username
+sleep   1234 username  txt      REG    1,4     50240 58720388 /bin/sleep
+sleep   1234 username  txt      REG    1,4   1198768 58720389 /usr/lib/dyld
+sleep   1234 username  txt      REG    1,4    631536 58720390 /usr/lib/libSystem.B.dylib</code></pre>
+        
+        <p>This shows all files opened by the process, including:</p>
+        <ul>
+            <li>Current working directory (cwd)</li>
+            <li>The executable itself (txt)</li>
+            <li>Dynamic linker (dyld)</li>
+            <li>Shared libraries</li>
+        </ul>
+        
+        <h4>Checking Environment Variables</h4>
+        
+<pre><code class="language-bash">ps eww 1234</code></pre>
+        
+        <p>This displays the environment variables set for the process, showing how the process was configured at startup.</p>
+        
+        <h4>Watching System Call Activity</h4>
+        
+<pre><code class="language-bash">sudo dtruss -p 1234</code></pre>
+        
+        <p>This shows the system calls made by the process in real-time. For a sleep process, very little activity will occur.</p>
+        
+        <h4>Terminating the Process</h4>
+        
+<pre><code class="language-bash">kill 1234</code></pre>
+        
+        <p>This sends a SIGTERM signal to the process, asking it to terminate gracefully.</p>
+        
+        <h3>Solutions to Exercise 3 Questions</h3>
+        
+        <ol>
+            <li>
+                <strong>What system calls did the sleep process make?</strong>
+                <p>The <code>sleep</code> process typically makes very few system calls while sleeping:</p>
+                <ul>
+                    <li><code>nanosleep</code> or <code>poll</code>: The actual system call for sleeping</li>
+                    <li><code>sigaction</code>, <code>sigprocmask</code>: Signal-related calls for handling interruption</li>
+                    <li><code>read</code>, <code>write</code>: Minimal I/O activity, usually related to standard file descriptors</li>
+                </ul>
+                <p>This simplicity makes <code>sleep</code> an excellent process to study, as its behavior is predictable and minimal.</p>
+            </li>
+            <li>
+                <strong>What files did it have open?</strong>
+                <p>The <code>sleep</code> process typically has open:</p>
+                <ul>
+                    <li>Standard file descriptors (stdin, stdout, stderr)</li>
+                    <li>The executable file itself (/bin/sleep)</li>
+                    <li>Dynamic linker (/usr/lib/dyld)</li>
+                    <li>Shared libraries (e.g., /usr/lib/libSystem.B.dylib)</li>
+                    <li>Current working directory</li>
+                </ul>
+                <p>Unlike complex applications, <code>sleep</code> has a minimal set of open files.</p>
+            </li>
+            <li>
+                <strong>What user and group was it running as?</strong>
+                <p>The process runs as the user who executed it, which should be your username. This can be verified in the <code>ps -ef</code> output (third column) and the <code>lsof</code> output (USER column).</p>
+            </li>
+            <li>
+                <strong>What was its parent process?</strong>
+                <p>The parent process ID (PPID) is shown in the second column of the <code>ps -ef</code> output. For a process started in Terminal, the parent is typically your shell process (bash, zsh, etc.), which in turn has Terminal as its parent.</p>
+            </li>
+        </ol>
+        
+        <h2>Exercise 4: Security Control Investigation</h2>
+        
+        <p>This exercise examines System Integrity Protection and code signing mechanisms.</p>
+        
+        <h3>Command Execution and Expected Output</h3>
+        
+        <h4>Checking SIP Status</h4>
+        
+<pre><code class="language-bash">csrutil status</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>System Integrity Protection status: enabled.</code></pre>
+        
+        <p>This shows whether System Integrity Protection is active. When enabled, it restricts what operations can be performed on protected parts of the file system, even by the root user.</p>
+        
+        <h4>Testing SIP Restrictions</h4>
+        
+<pre><code class="language-bash">sudo touch /System/test.txt</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>touch: /System/test.txt: Operation not permitted</code></pre>
+        
+        <p>This command attempts to create a file in a protected directory. With SIP enabled, this operation should fail with "Operation not permitted" even though it's run with sudo.</p>
+        
+        <h4>Examining Code Signatures</h4>
+        
+<pre><code class="language-bash">codesign -vv -d /Applications/Safari.app</code></pre>
+        
+        <p>Expected output:</p>
+        
+<pre><code>Executable=/Applications/Safari.app/Contents/MacOS/Safari
+Identifier=com.apple.Safari
+Format=app bundle with Mach-O universal (x86_64 arm64)
+CodeDirectory v=20500 size=334441 flags=0x10000(runtime) hashes=10447+5 location=embedded
+Signature size=4442
+Authority=Software Signing
+Authority=Apple Code Signing Certification Authority
+Authority=Apple Root CA
+Info.plist entries=36
+TeamIdentifier=not set
+Runtime Version=13.0.0
+Sealed Resources version=2 rules=13 files=484
+Internal requirements count=1 size=176</code></pre>
+        
+        <p>This verifies and displays the code signature of Safari. The output includes:</p>
+        <ul>
+            <li>Executable path</li>
+            <li>Bundle identifier</li>
+            <li>Architecture(s)</li>
+            <li>Code signature details</li>
+            <li>Signing authority (Apple)</li>
+            <li>Other security-related information</li>
+        </ul>
+        
+        <h4>Checking Entitlements</h4>
+        
+<pre><code class="language-bash">codesign -d --entitlements :- /Applications/Safari.app</code></pre>
+        
+        <p>Expected output (partial):</p>
+        
+<pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;com.apple.security.app-sandbox&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;com.apple.security.files.user-selected.read-write&lt;/key&gt;
+    &lt;true/&gt;
+    &lt;key&gt;com.apple.security.network.client&lt;/key&gt;
+    &lt;true/&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;</code></pre>
+        
+        <p>This shows the entitlements granted to Safari. Entitlements specify what capabilities and resources the application is allowed to use, such as accessing the network, using the camera, or accessing specific files.</p>
+        
+        <h3>Solutions to Exercise 4 Questions</h3>
+        
+        <ol>
+            <li>
+                <strong>Is SIP enabled on your system?</strong>
+                <p>You can determine this from the output of <code>csrutil status</code>. The output will explicitly state whether SIP is enabled or disabled. On standard macOS installations, SIP should be enabled for security reasons.</p>
+            </li>
+            <li>
+                <strong>What happened when you tried to write to the protected directory?</strong>
+                <p>When attempting to create a file in /System with SIP enabled, you'll receive an "Operation not permitted" error. This occurs even with sudo/root privileges, demonstrating how SIP provides protection beyond traditional Unix permissions. The error occurs because SIP specifically protects system directories from modification.</p>
+            </li>
+            <li>
+                <strong>Who signed the Safari application?</strong>
+                <p>Safari is signed by Apple, as indicated in the "Authority" lines in the <code>codesign -vv -d</code> output. The signature chain typically shows:</p>
+                <ul>
+                    <li>Software Signing</li>
+                    <li>Apple Code Signing Certification Authority</li>
+                    <li>Apple Root CA</li>
+                </ul>
+                <p>This chain of trust verifies that the application comes directly from Apple.</p>
+            </li>
+            <li>
+                <strong>What entitlements does Safari have?</strong>
+                <p>Safari has multiple entitlements, typically including:</p>
+                <ul>
+                    <li><code>com.apple.security.app-sandbox</code>: Indicates Safari runs in a sandbox</li>
+                    <li><code>com.apple.security.files.user-selected.read-write</code>: Can read/write files selected by the user</li>
+                    <li><code>com.apple.security.network.client</code>: Can make outbound network connections</li>
+                    <li><code>com.apple.security.device.camera</code>: Can access the camera</li>
+                    <li><code>com.apple.security.device.microphone</code>: Can access the microphone</li>
+                </ul>
+                <p>These entitlements define the boundaries of what Safari is allowed to do within macOS's security model.</p>
+            </li>
+        </ol>
+        
+        <h2>Further Exploration</h2>
+        
+        <p>Now that you've completed the basic exercises, consider these advanced investigations:</p>
+        
+        <h3>1. Security Audit</h3>
+        <ul>
+            <li>Run <code>sudo find / -perm -4000 -ls 2>/dev/null</code> to find all setuid binaries system-wide</li>
+            <li>Examine <code>/etc/sudoers</code> to understand sudo configuration</li>
+            <li>Review login items with <code>osascript -e 'tell application "System Events" to get the name of every login item'</code></li>
+        </ul>
+        
+        <h3>2. KEXT Analysis</h3>
+        <ul>
+            <li>Examine detailed information about a specific KEXT with <code>kextfind -bundle-id com.apple.iokit.IOUSBFamily -print</code></li>
+            <li>Check if a KEXT is loadable with <code>kextutil -tn /path/to/kext</code></li>
+        </ul>
+        
+        <h3>3. System Behavior Analysis</h3>
+        <ul>
+            <li>Monitor system-wide process creation with <code>sudo dtrace -n 'proc:::exec-success { printf("%s %s",execname,curpsinfo->pr_psargs); }'</code></li>
+            <li>Track file system operations with <code>sudo fs_usage</code></li>
+            <li>Watch network activity with <code>sudo tcpdump -i en0 -n</code></li>
+        </ul>
+        
+        <h3>4. Security Controls</h3>
+        <ul>
+            <li>Investigate application sandbox profiles in <code>/System/Library/Sandbox/Profiles/</code></li>
+            <li>Examine TCC database permissions with <code>sqlite3 ~/Library/Application\ Support/com.apple.TCC/TCC.db .dump</code> (requires SIP disabled)</li>
+        </ul>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 macOS Security Research Preparation Guide</p>
+        <p>
+            <a href="../index.html">Home</a> | 
+            <a href="../lessons/lesson1.html">Back to Lesson 1</a>
+        </p>
+    </footer>
+    
+    <!-- Syntax highlighting JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>

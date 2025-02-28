@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research - Lesson 1: MacOS Fundamentals</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+    
+    <!-- Mermaid JS for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="../js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lesson1.html" class="current">1. MacOS Fundamentals</a></li>
+                <li><a href="lesson2.html">2. Objective-C Primer</a></li>
+                <li><a href="lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="lesson4.html">4. Development Environment</a></li>
+                <li><a href="lesson5.html">5. Reverse Engineering</a></li>
+                <li><a href="lesson6.html">6. Exploit Development</a></li>
+                <li><a href="lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>Lesson 1: MacOS Fundamentals</h1>
+        
+        <div class="introduction">
+            <p>Understanding the fundamental architecture and design principles of macOS is essential for effective security research. This comprehensive lesson will explore the core components of macOS, from its Unix foundations to its unique security-relevant features.</p>
+        </div>
+        <div class="solutions-link">
+    <a href="../solutions/lesson1_solutions.html" class="btn btn-primary">
+        <span class="icon">📝</span> View Solutions for this Lesson
+    </a>
+</div>
+        <h2>Table of Contents</h2>
+        <ol>
+            <li><a href="#macos-architecture-overview">MacOS Architecture Overview</a></li>
+            <li><a href="#xnu-kernel-fundamentals">XNU Kernel Fundamentals</a></li>
+            <li><a href="#macos-file-system-structure">MacOS File System Structure</a></li>
+            <li><a href="#permissions-and-access-controls">Permissions and Access Controls</a></li>
+            <li><a href="#process-management">Process Management</a></li>
+            <li><a href="#hands-on-exercises">Hands-on Exercises</a></li>
+            <li><a href="#additional-resources">Additional Resources</a></li>
+        </ol>
+        
+        <h2 id="macos-architecture-overview">1. MacOS Architecture Overview</h2>
+        
+        <p>macOS uses a layered architecture that builds upon a Unix foundation while adding Apple-specific technologies and security mechanisms.</p>
+        
+        <div class="mermaid">
+        graph TD
+          A[User Experience Layer] --> B[Application Frameworks Layer]
+          B --> C[Core Frameworks Layer]
+          C --> D[Kernel and Device Drivers Layer]
+          
+          subgraph "User Experience Layer"
+            A1[Aqua UI]
+            A2[Finder]
+            A3[Dock]
+            A4[Spotlight]
+            A5[Notification Center]
+          end
+          
+          subgraph "Application Frameworks Layer"
+            B1[Cocoa/Cocoa Touch]
+            B2[AppKit]
+            B3[Foundation]
+            B4[Core Animation]
+            B5[WebKit]
+          end
+          
+          subgraph "Core Frameworks Layer"
+            C1[Core Services]
+            C2[Core Foundation]
+            C3[Security Framework]
+            C4[Core Graphics]
+            C5[IOKit]
+          end
+          
+          subgraph "Kernel and Device Drivers Layer"
+            D1[XNU Kernel]
+            D2[Mach]
+            D3[BSD]
+            D4[I/O Kit]
+            D5[libkern]
+          end
+        </div>
+        
+        <h3>Key Architecture Components:</h3>
+        
+        <h4>1. User Experience Layer</h4>
+        <ul>
+            <li>Provides the visual interface and user interactions</li>
+            <li>Includes Aqua UI, Finder, Dock, and other visible components</li>
+            <li>First line of user-facing security controls</li>
+        </ul>
+        
+        <h4>2. Application Frameworks Layer</h4>
+        <ul>
+            <li>Provides APIs and services for application development</li>
+            <li>Cocoa/AppKit: Native application frameworks</li>
+            <li>Foundation: Core data types and collections</li>
+            <li>Security-relevant frameworks control access to protected resources</li>
+        </ul>
+        
+        <h4>3. Core Frameworks Layer</h4>
+        <ul>
+            <li>Implements fundamental services</li>
+            <li>Core Services: File system, networking, and other essential services</li>
+            <li>Security Framework: Cryptography, certificate handling, keychain access</li>
+            <li>IOKit: Device driver interface</li>
+        </ul>
+        
+        <h4>4. Kernel and Device Drivers Layer</h4>
+        <ul>
+            <li>XNU kernel: Hybrid kernel combining Mach and BSD components</li>
+            <li>Enforces security boundaries between processes</li>
+            <li>Manages hardware access and system resources</li>
+        </ul>
+        
+        <h3>Darwin: The Open Source Foundation</h3>
+        
+        <p>macOS is built on Darwin, an open-source Unix-like operating system that includes:</p>
+        
+        <ul>
+            <li>XNU kernel</li>
+            <li>Core BSD components</li>
+            <li>Various command-line utilities</li>
+            <li>Basic system services</li>
+        </ul>
+        
+        <p>This open-source foundation means many security research techniques from the Unix/Linux world apply to macOS, but with important differences in implementation and security controls.</p>
+        
+        <h2 id="xnu-kernel-fundamentals">2. XNU Kernel Fundamentals</h2>
+        
+        <p>XNU (X is Not Unix) is the hybrid kernel that powers macOS. Understanding its structure is crucial for kernel-level security research.</p>
+        
+        <div class="mermaid">
+        graph TD
+          XNU[XNU Kernel] --> Mach[Mach Component]
+          XNU --> BSD[BSD Component]
+          XNU --> IOKit[I/O Kit]
+          XNU --> Libkern[Libkern/C++]
+          
+          subgraph "Mach Component"
+            Mach1[Task/Thread Management]
+            Mach2[Virtual Memory]
+            Mach3[IPC Mechanisms]
+            Mach4[Scheduling]
+          end
+          
+          subgraph "BSD Component"
+            BSD1[POSIX API]
+            BSD2[VFS]
+            BSD3[Network Stack]
+            BSD4[System Calls]
+            BSD5[Security Policies]
+          end
+          
+          subgraph "I/O Kit"
+            IOKit1[Device Driver Framework]
+            IOKit2[Power Management]
+            IOKit3[Object-Oriented C++]
+          end
+          
+          subgraph "Libkern/C++"
+            Libkern1[C++ Runtime]
+            Libkern2[Common Data Structures]
+          end
+        </div>
+        
+        <h3>Mach Component</h3>
+        
+        <p>Mach is a microkernel that forms the foundation of XNU, providing:</p>
+        
+        <ul>
+            <li><strong>Task and Thread Management</strong>: The fundamental units of execution in macOS
+                <ul>
+                    <li>A task is similar to a process and contains resources</li>
+                    <li>Threads are individual execution contexts within a task</li>
+                </ul>
+            </li>
+            <li><strong>Virtual Memory System</strong>: Manages memory allocation and protection
+                <ul>
+                    <li>Implements copy-on-write and other memory optimizations</li>
+                    <li>Controls memory regions and their permissions</li>
+                </ul>
+            </li>
+            <li><strong>Inter-Process Communication (IPC)</strong>: Mach messaging system
+                <ul>
+                    <li>Messages pass between tasks via ports</li>
+                    <li>Forms the basis for XPC services in userland</li>
+                </ul>
+            </li>
+            <li><strong>Scheduling</strong>: Determines which threads run and when</li>
+        </ul>
+        
+        <h3>BSD Component</h3>
+        
+        <p>The BSD layer provides UNIX compatibility and implements:</p>
+        
+        <ul>
+            <li><strong>POSIX API</strong>: Standard Unix interfaces</li>
+            <li><strong>Virtual File System (VFS)</strong>: Abstracts different file systems</li>
+            <li><strong>Network Stack</strong>: BSD sockets and networking</li>
+            <li><strong>Process Model</strong>: Unix-style processes built on Mach tasks</li>
+            <li><strong>Security Policies</strong>: Many traditional permissions and access controls</li>
+        </ul>
+        
+        <h3>I/O Kit</h3>
+        
+        <p>I/O Kit is an object-oriented device driver framework:</p>
+        
+        <ul>
+            <li>Written in a restricted subset of C++</li>
+            <li>Implements a driver matching system</li>
+            <li>Provides power management</li>
+            <li><strong>Security Relevance</strong>: Many historical privilege escalation vulnerabilities have targeted I/O Kit drivers</li>
+        </ul>
+        
+        <h3>Kernel Extensions (KEXTs)</h3>
+        
+        <p>KEXTs are loadable modules that extend kernel functionality:</p>
+        
+        <ul>
+            <li>Similar to loadable kernel modules in Linux</li>
+            <li>Loaded into kernel space with full privileges</li>
+            <li>Can be examined in <code>/System/Library/Extensions</code></li>
+            <li>Increasingly restricted in modern macOS versions</li>
+            <li>Being replaced by System Extensions that run in user space</li>
+        </ul>
+        
+        <h3>Viewing Kernel Information</h3>
+        
+<pre><code class="language-bash"># View loaded kernel extensions
+kextstat
+
+# View detailed information about a specific kext
+kextfind -bundle-id com.apple.iokit.IOUSBFamily
+
+# View kernel version information
+sysctl kern.version
+
+# Examine kernel task information
+sudo dtrace -n 'proc:::exec-success { printf("%s %s",execname,curpsinfo->pr_psargs); }'</code></pre>
+        
+        <h2 id="macos-file-system-structure">3. MacOS File System Structure</h2>
+        
+        <p>Modern macOS systems use Apple File System (APFS), which replaced the older HFS+ file system. APFS was designed with encryption, SSDs, and security in mind.</p>
+        
+        <h3>APFS Features Relevant to Security:</h3>
+        
+        <ul>
+            <li><strong>Native Encryption</strong>: Built-in support for volume encryption</li>
+            <li><strong>Copy-on-Write</strong>: Changes are written to new locations before being committed</li>
+            <li><strong>Snapshots</strong>: Point-in-time read-only instances of the file system</li>
+            <li><strong>Clones</strong>: Efficient file and directory copies that share storage</li>
+            <li><strong>Space Sharing</strong>: Multiple volumes dynamically share space from the same container</li>
+        </ul>
+        
+        <h3>MacOS File System Hierarchy</h3>
+        
+        <div class="mermaid">
+        graph TD
+          Root["/"] --> Applications["/Applications"]
+          Root --> Library["/Library"]
+          Root --> System["/System"]
+          Root --> Users["/Users"]
+          Root --> Volumes["/Volumes"]
+          Root --> var["/var"]
+          Root --> tmp["/tmp"]
+          Root --> etc["/etc"]
+          Root --> bin["/bin"]
+          Root --> sbin["/sbin"]
+          
+          System --> SystemLibrary["/System/Library"]
+          SystemLibrary --> Frameworks["/System/Library/Frameworks"]
+          SystemLibrary --> Extensions["/System/Library/Extensions"]
+          SystemLibrary --> CoreServices["/System/Library/CoreServices"]
+          
+          Users --> UserHome["/Users/username"]
+          UserHome --> UserApplications["~/Applications"]
+          UserHome --> UserLibrary["~/Library"]
+          UserHome --> Documents["~/Documents"]
+          
+          UserLibrary --> Preferences["~/Library/Preferences"]
+          UserLibrary --> ApplicationSupport["~/Library/Application Support"]
+          UserLibrary --> Caches["~/Library/Caches"]
+          UserLibrary --> Containers["~/Library/Containers"]
+        </div>
+        
+        <h3>Important Directories for Security Research:</h3>
+        
+        <ol>
+            <li><strong>/System</strong>: Contains essential system files
+                <ul>
+                    <li>Protected by System Integrity Protection (SIP)</li>
+                    <li>Mounted as read-only since macOS Catalina</li>
+                    <li>Contains critical frameworks and system components</li>
+                </ul>
+            </li>
+            <li><strong>/Library</strong>: System-wide libraries, preferences, and application support
+                <ul>
+                    <li>Contains configuration files that might be security-relevant</li>
+                    <li>Can include system extensions and launch daemons</li>
+                </ul>
+            </li>
+            <li><strong>/Users/&lt;username&gt;/Library</strong>: User-specific application data
+                <ul>
+                    <li>Contains per-user preferences and application data</li>
+                    <li>Often stores credentials and sensitive information</li>
+                    <li><code>~/Library/Keychains</code> stores the user's keychain files</li>
+                </ul>
+            </li>
+            <li><strong>/Applications</strong>: System and user applications
+                <ul>
+                    <li>Installed applications are stored here</li>
+                    <li>Each app is a bundle (directory structure) containing executables and resources</li>
+                </ul>
+            </li>
+            <li><strong>/private</strong>: Contains system data that changes
+                <ul>
+                    <li><code>/private/var</code>: Variable system data (logs, temporary files)</li>
+                    <li><code>/private/etc</code>: Configuration files</li>
+                    <li><code>/private/tmp</code>: Temporary files</li>
+                </ul>
+            </li>
+            <li><strong>/bin</strong>, <strong>/sbin</strong>, <strong>/usr/bin</strong>, <strong>/usr/sbin</strong>: System binaries and tools
+                <ul>
+                    <li>Contains command-line utilities and essential programs</li>
+                    <li>Protected by SIP in modern macOS</li>
+                </ul>
+            </li>
+            <li><strong>/System/Library/LaunchDaemons</strong> and <strong>/Library/LaunchDaemons</strong>:
+                <ul>
+                    <li>Contain system services configuration</li>
+                    <li>Critical for persistence mechanisms and privilege escalation</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h3>Unique macOS File System Features:</h3>
+        
+        <ol>
+            <li><strong>Application Bundles</strong>: Directory structures with a specific format
+                <ul>
+                    <li><code>.app</code> suffix, internally structured with resources and executables</li>
+                    <li>Contains Info.plist with application metadata</li>
+                </ul>
+            </li>
+            <li><strong>Resource Forks</strong>: Extended file attributes specific to macOS
+                <ul>
+                    <li>Can store metadata associated with files</li>
+                    <li>Accessible with special APIs or using <code>/..namedfork/rsrc</code> path suffix</li>
+                </ul>
+            </li>
+            <li><strong>Extended Attributes</strong>: Store additional metadata on files
+                <ul>
+                    <li>Used by security mechanisms like Gatekeeper</li>
+                    <li>View with <code>xattr -l filename</code></li>
+                    <li>Security-relevant attributes include <code>com.apple.quarantine</code></li>
+                </ul>
+            </li>
+            <li><strong>Firmlinks</strong>: Special links between locations in the file system
+                <ul>
+                    <li>Used to maintain legacy directory structures</li>
+                    <li>Different from symbolic or hard links</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h3>Navigating macOS from Terminal:</h3>
+        
+<pre><code class="language-bash"># Show hidden files
+ls -la
+
+# View file information including extended attributes
+ls -la@ filename
+
+# List extended attributes
+xattr -l filename
+
+# Remove a specific extended attribute
+xattr -d com.apple.quarantine filename
+
+# View application bundle contents
+cd /Applications/Safari.app/Contents
+
+# View binary information
+file /bin/ls
+
+# Show where a command is located
+which python
+
+# Show real path for a symbolic link
+readlink /var/db</code></pre>
+        
+        <h2 id="permissions-and-access-controls">4. Permissions and Access Controls</h2>
+        
+        <p>macOS implements multiple layers of access controls, from traditional Unix permissions to modern enhanced security mechanisms.</p>
+        
+        <h3>Traditional Unix Permissions</h3>
+        
+        <p>macOS inherits the standard Unix permission model:</p>
+        
+        <ul>
+            <li><strong>User/Group/Other</strong> permission bits (read/write/execute)</li>
+            <li>File ownership (user and group)</li>
+            <li>Special bits (setuid, setgid, sticky bit)</li>
+        </ul>
+        
+<pre><code class="language-bash"># View file permissions
+ls -l /bin/sudo
+# -r-s--x--x  1 root  wheel  123456 Jan 1 12:00 /bin/sudo
+# The 's' indicates setuid permission
+
+# Change file permissions
+chmod 755 filename  # rwx r-x r-x
+
+# Change file ownership
+chown user:group filename</code></pre>
+        
+        <h3>Access Control Lists (ACLs)</h3>
+        
+        <p>ACLs provide finer-grained control over file permissions:</p>
+        
+<pre><code class="language-bash"># View ACLs
+ls -le filename
+
+# Add an ACL entry
+chmod +a "user:username allow read,write" filename
+
+# Remove an ACL entry
+chmod -a "user:username allow read,write" filename</code></pre>
+        
+        <h3>System Integrity Protection (SIP)</h3>
+        
+        <p>SIP protects system files from modification, even by root:</p>
+        
+        <ul>
+            <li>Prevents modification of protected system files and directories</li>
+            <li>Restricts kernel extension loading</li>
+            <li>Protects against runtime attachment to system processes</li>
+            <li>Controls symbolic link creation in protected directories</li>
+        </ul>
+        
+<pre><code class="language-bash"># Check SIP status
+csrutil status
+
+# SIP can only be disabled by booting into Recovery Mode
+# and running: csrutil disable
+# (This is NOT recommended for normal operation)</code></pre>
+        
+        <h3>File Flags</h3>
+        
+        <p>macOS supports BSD file flags that can restrict operations:</p>
+        
+<pre><code class="language-bash"># View file flags
+ls -lO filename
+
+# Set the immutable flag
+chflags uchg filename
+
+# Clear all flags
+chflags nouchg filename</code></pre>
+        
+        <p>Common flags include:</p>
+        <ul>
+            <li><code>uchg</code>: Immutable file</li>
+            <li><code>uappnd</code>: Append-only</li>
+            <li><code>restricted</code>: Special restrictions apply</li>
+            <li><code>opaque</code>: Directory that contains a mount point</li>
+        </ul>
+        
+        <h3>Code Signing and Notarization</h3>
+        
+        <p>Modern macOS enforces code signing requirements:</p>
+        
+        <ul>
+            <li>Applications must be signed with a developer certificate</li>
+            <li>Gatekeeper verifies signatures before execution</li>
+            <li>Notarization provides additional verification by Apple</li>
+        </ul>
+        
+<pre><code class="language-bash"># Verify code signature
+codesign -vv -d /Applications/Safari.app
+
+# Check Gatekeeper assessment
+spctl --assess --verbose /Applications/MyApp.app</code></pre>
+        
+        <h3>Transparency, Consent, and Control (TCC)</h3>
+        
+        <p>TCC manages permissions for accessing protected user data:</p>
+        
+        <ul>
+            <li>Controls access to camera, microphone, contacts, etc.</li>
+            <li>Requires explicit user consent</li>
+            <li>Configurations stored in TCC.db</li>
+        </ul>
+        
+<pre><code class="language-bash"># Location of TCC database (modern macOS)
+# Requires disabling SIP to access directly
+ls -la ~/Library/Application\ Support/com.apple.TCC/</code></pre>
+        
+        <h2 id="process-management">5. Process Management</h2>
+        
+        <p>Understanding how macOS manages processes is crucial for security analysis.</p>
+        
+        <h3>Process Hierarchy</h3>
+        
+        <p>macOS follows the Unix model of process hierarchy:</p>
+        
+        <ul>
+            <li>All processes descend from the <code>launchd</code> process (PID 1)</li>
+            <li>Each process has a parent process (except <code>launchd</code>)</li>
+            <li>Processes can create child processes</li>
+        </ul>
+        
+<pre><code class="language-bash"># View process tree
+ps -axo pid,ppid,user,command
+
+# More detailed view with pstree (may need to install)
+pstree
+
+# View process hierarchy through Activity Monitor (GUI)
+# Open Activity Monitor and select "Hierarchical view"</code></pre>
+        
+        <h3>Launch Services</h3>
+        
+        <p>macOS uses several mechanisms to start processes:</p>
+        
+        <ol>
+            <li><strong>launchd</strong>: The first process, starts and manages system services
+                <ul>
+                    <li>Uses property list (plist) files to configure services</li>
+                    <li>System-wide services in <code>/Library/LaunchDaemons/</code> and <code>/System/Library/LaunchDaemons/</code></li>
+                    <li>User services in <code>~/Library/LaunchAgents/</code> and <code>/Library/LaunchAgents/</code></li>
+                </ul>
+            </li>
+            <li><strong>XPC Services</strong>: Lightweight service mechanism 
+                <ul>
+                    <li>Often contained within application bundles</li>
+                    <li>Provides privilege separation</li>
+                    <li>Controlled via entitlements</li>
+                </ul>
+            </li>
+            <li><strong>Login Items</strong>: Applications started at login
+                <ul>
+                    <li>Managed in System Preferences → Users & Groups → Login Items</li>
+                    <li>Also in <code>~/Library/Application Support/com.apple.backgroundtaskmanagementagent/</code></li>
+                </ul>
+            </li>
+        </ol>
+        
+        <h3>Process Information and Monitoring</h3>
+        
+<pre><code class="language-bash"># View all processes
+ps -ef
+
+# View process details
+ps -p PID -o pid,ppid,user,vsz,rss,command
+
+# Monitor process activity in real-time
+top
+# Or for a more user-friendly version
+htop  # May need to install via Homebrew
+
+# Track process creation
+sudo dtrace -n 'proc:::exec-success { printf("%s %s",execname,curpsinfo->pr_psargs); }'
+
+# Monitor file system activity of a process
+sudo fs_usage -f filesystem PID</code></pre>
+        
+        <h3>Signals and Process Control</h3>
+        
+        <p>macOS processes can be controlled via signals:</p>
+        
+<pre><code class="language-bash"># List all signals
+kill -l
+
+# Send SIGTERM to process (graceful termination)
+kill PID
+
+# Force termination with SIGKILL
+kill -9 PID
+
+# Send signal to all processes of a user
+pkill -u username
+
+# Suspend a process (SIGSTOP)
+kill -STOP PID
+
+# Resume a suspended process (SIGCONT)
+kill -CONT PID</code></pre>
+        
+        <h3>Entitlements and Sandboxing</h3>
+        
+        <p>Modern macOS applications use entitlements to define capabilities:</p>
+        
+        <ul>
+            <li>Entitlements are specified in the application's code signature</li>
+            <li>Control what resources an application can access</li>
+            <li>Enforced by the kernel</li>
+        </ul>
+        
+<pre><code class="language-bash"># View application entitlements
+codesign -d --entitlements :- /Applications/Safari.app
+
+# Common entitlements include:
+# - com.apple.security.app-sandbox
+# - com.apple.security.files.user-selected.read-only
+# - com.apple.security.network.client</code></pre>
+        
+        <p>Sandboxed applications run with restricted privileges:</p>
+        <ul>
+            <li>Limited file system access</li>
+            <li>Controlled network access</li>
+            <li>Restricted system service access</li>
+            <li>Can't interfere with other applications</li>
+        </ul>
+        
+        <h2 id="hands-on-exercises">6. Hands-on Exercises</h2>
+        
+        <h3>Exercise 1: Exploring System Architecture</h3>
+        
+        <p><strong>Task</strong>: Identify and document key system components and their versions.</p>
+        
+<pre><code class="language-bash"># System version information
+sw_vers
+
+# Kernel version
+uname -a
+
+# Hardware information
+system_profiler SPHardwareDataType
+
+# List all kernel extensions
+kextstat | sort
+
+# List running processes and their hierarchy
+ps -axo pid,ppid,user,command | less</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>What version of macOS are you running?</li>
+            <li>How many kernel extensions are loaded?</li>
+            <li>Identify three third-party kernel extensions (if any).</li>
+            <li>What is the parent process ID of Terminal or your preferred shell?</li>
+        </ol>
+        <p class="exercise-solution-link">
+    <a href="../solutions/lesson1_solutions.html#exercise1-solutions">View solution for Exercise 1</a>
+</p>
+        <h3>Exercise 2: File System Exploration</h3>
+        
+        <p><strong>Task</strong>: Investigate security-relevant file system locations and permissions.</p>
+        
+<pre><code class="language-bash"># Examine protected system directories
+ls -la /System/Library/CoreServices/
+
+# Look at launch daemons
+ls -la /Library/LaunchDaemons/
+
+# Check for setuid binaries
+sudo find /usr -type f -perm -4000 -ls
+
+# Examine your user's Library folder
+ls -la ~/Library/</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>What permissions do launch daemon plist files have?</li>
+            <li>How many setuid binaries did you find?</li>
+            <li>What files in your home directory have extended attributes?</li>
+            <li>Can you identify any quarantined files?</li>
+        </ol>
+        <p class="exercise-solution-link">
+    <a href="../solutions/lesson1_solutions.html#exercise1-solutions">View solution for Exercise 1</a>
+</p>
+        <h3>Exercise 3: Process Analysis</h3>
+        
+        <p><strong>Task</strong>: Monitor and analyze process behavior.</p>
+        
+<pre><code class="language-bash"># Start a simple background process
+sleep 3600 &
+
+# Find its PID
+ps -ef | grep sleep
+
+# Monitor its open files and sockets
+sudo lsof -p PID
+
+# Check its environment variables
+ps eww PID
+
+# Watch system call activity
+sudo dtruss -p PID
+
+# Terminate the process when done
+kill PID</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>What system calls did the sleep process make?</li>
+            <li>What files did it have open?</li>
+            <li>What user and group was it running as?</li>
+            <li>What was its parent process?</li>
+        </ol>
+        <p class="exercise-solution-link">
+    <a href="../solutions/lesson1_solutions.html#exercise1-solutions">View solution for Exercise 1</a>
+</p>
+        <h3>Exercise 4: Security Control Investigation</h3>
+        
+        <p><strong>Task</strong>: Examine SIP and code signing.</p>
+        
+<pre><code class="language-bash"># Check SIP status
+csrutil status
+
+# Try to write to a protected directory (should fail)
+sudo touch /System/test.txt
+
+# Examine code signing of a system application
+codesign -vv -d /Applications/Safari.app
+
+# Check entitlements
+codesign -d --entitlements :- /Applications/Safari.app</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>Is SIP enabled on your system?</li>
+            <li>What happened when you tried to write to the protected directory?</li>
+            <li>Who signed the Safari application?</li>
+            <li>What entitlements does Safari have?</li>
+        </ol>
+        
+        <h2 id="additional-resources">7. Additional Resources</h2>
+        
+        <h3>Video Tutorials</h3>
+        
+        <ul>
+            <li><a href="https://www.youtube.com/watch?v=4-5MFCF9jU4">Jonathan Levin's "OS Internals" series</a> - In-depth exploration of macOS internals</li>
+            <li><a href="https://www.youtube.com/watch?v=xJpKQAl6Jpo">DEFCON 27: "Tracking Attackers through macOS"</a> - Security perspective on macOS</li>
+            <li><a href="https://www.youtube.com/watch?v=GX6uloTNsus">Patrick Wardle's "Mac Malware for Dummies"</a> - Excellent introduction to macOS security</li>
+        </ul>
+        
+        <h3>Books and Documentation</h3>
+        
+        <ul>
+            <li><a href="https://www.amazon.com/Mac-OS-iOS-Internals-Apples/dp/1118057651">Mac OS X and iOS Internals</a> by Jonathan Levin</li>
+            <li><a href="https://www.amazon.com/Mac-Hackers-Handbook-Charlie-Miller/dp/0470395362">The Mac Hacker's Handbook</a> by Charlie Miller & Dino Dai Zovi</li>
+            <li><a href="https://opensource.apple.com">Apple's XNU Source Code</a> - Official source for Darwin components</li>
+        </ul>
+        
+        <h3>Websites and Blogs</h3>
+        
+        <ul>
+            <li><a href="https://objective-see.org/">Objective-See</a> - Patrick Wardle's macOS security resources</li>
+            <li><a href="https://security.apple.com/research/">Apple Security Research</a> - Official Apple security documentation</li>
+            <li><a href="https://newosxbook.com/">Mac OS X Internals</a> - Jonathan Levin's site with resources and tools</li>
+        </ul>
+        
+        <h3>Tools</h3>
+        
+        <ul>
+            <li><a href="https://objective-see.org/tools.html">Objective-See Tools</a> - Free security tools for macOS</li>
+            <li><a href="https://github.com/Yelp/osxcollector">OSXCollector</a> - Forensic evidence collection & analysis</li>
+            <li><a href="https://www.hopperapp.com/">Hopper Disassembler</a> - Reverse engineering tool for macOS binaries</li>
+        </ul>
+        
+        <h2>Conclusion</h2>
+        
+        <p>This lesson has covered the fundamental architecture and system components of macOS, providing a foundation for security research. Understanding these concepts is crucial before diving into specific vulnerability classes and exploitation techniques.</p>
+        
+        <p>In our next lesson, we'll explore Objective-C, which is essential for understanding many macOS applications and frameworks.</p>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 macOS Security Research Preparation Guide</p>
+        <p>
+            <a href="../index.html">Home</a> | 
+            <a href="../solutions/lesson1_solutions.html">Solutions for Lesson 1</a>
+        </p>
+    </footer>
+    
+    <!-- Syntax highlighting JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>

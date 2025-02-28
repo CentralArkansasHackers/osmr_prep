@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research Preparation Guide</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Custom JS -->
+    <script src="js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="index.html" class="current">Home</a></li>
+                <li><a href="lessons/lesson1.html">1. MacOS Fundamentals</a></li>
+                <li><a href="lessons/lesson2.html">2. Objective-C Primer</a></li>
+                <li><a href="lessons/lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="lessons/lesson4.html">4. Development Environment</a></li>
+                <li><a href="lessons/lesson5.html">5. Reverse Engineering</a></li>
+                <li><a href="lessons/lesson6.html">6. Exploit Development</a></li>
+                <li><a href="lessons/lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="lessons/lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="lessons/lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>macOS Security Research Preparation Guide</h1>
+        
+        <div class="introduction">
+            <p>Welcome to the comprehensive preparation guide for the Offensive Security macOS Researcher certification. This self-paced course will help you build the foundational knowledge and practical skills needed for macOS security research, vulnerability discovery, and exploit development.</p>
+        </div>
+        
+        <div class="progress-tracker">
+            <h2>Course Progress</h2>
+            <p>The course consists of 9 lessons, covering everything from macOS basics to advanced exploitation techniques. Your current progress:</p>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 11%;"></div>
+            </div>
+            <p>Completed: 1/9 lessons (11%)</p>
+        </div>
+        
+        <h2>Course Overview</h2>
+        
+        <p>This preparation guide covers the fundamental knowledge and practical skills needed for macOS security research. Each lesson includes detailed explanations, diagrams, code examples, and hands-on exercises to reinforce the concepts covered.</p>
+        
+        <h2>Prerequisites</h2>
+        
+        <ul>
+            <li>Basic understanding of Unix/Linux systems</li>
+            <li>Familiarity with at least one programming language (preferably C/C++ or Objective-C)</li>
+            <li>Basic knowledge of computer architecture and memory concepts</li>
+            <li>Access to a Mac computer or VM for practical exercises</li>
+        </ul>
+        
+        <h2>Course Curriculum</h2>
+        
+        <div class="curriculum">
+            <div class="lesson-card completed">
+                <h3><a href="lessons/lesson1.html">Lesson 1: MacOS Fundamentals</a></h3>
+                <p>Architecture and system components, file system hierarchy, XNU kernel basics, and process management.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson1.html">Lesson</a> | 
+                    <a href="solutions/lesson1_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson2.html">Lesson 2: Objective-C Primer</a></h3>
+                <p>Syntax and language fundamentals, object-oriented programming concepts, memory management, runtime features, and interacting with Cocoa frameworks.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson2.html">Lesson</a> | 
+                    <a href="solutions/lesson2_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson3.html">Lesson 3: MacOS Security Model</a></h3>
+                <p>System Integrity Protection, Gatekeeper, code signing, sandbox mechanisms, and Transparency, Consent, and Control (TCC).</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson3.html">Lesson</a> | 
+                    <a href="solutions/lesson3_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson4.html">Lesson 4: Development Environment Setup</a></h3>
+                <p>Required tools and configurations, virtual machine setup, debugging and monitoring tools.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson4.html">Lesson</a> | 
+                    <a href="solutions/lesson4_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson5.html">Lesson 5: Reverse Engineering on MacOS</a></h3>
+                <p>Static and dynamic analysis tools and techniques, analyzing Mach-O files and frameworks.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson5.html">Lesson</a> | 
+                    <a href="solutions/lesson5_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson6.html">Lesson 6: Exploit Development Fundamentals</a></h3>
+                <p>Memory corruption concepts, buffer overflows, format string vulnerabilities, and heap exploitation.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson6.html">Lesson</a> | 
+                    <a href="solutions/lesson6_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson7.html">Lesson 7: MacOS Privilege Escalation</a></h3>
+                <p>Local privilege escalation vectors, bypass techniques for security controls, post-exploitation, and persistence.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson7.html">Lesson</a> | 
+                    <a href="solutions/lesson7_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson8.html">Lesson 8: Kernel Exploitation</a></h3>
+                <p>Kernel debugging setup, IOKit drivers and vulnerabilities, exploiting kernel extensions.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson8.html">Lesson</a> | 
+                    <a href="solutions/lesson8_solutions.html">Solutions</a>
+                </p>
+            </div>
+            
+            <div class="lesson-card upcoming">
+                <h3><a href="lessons/lesson9.html">Lesson 9: Advanced Topics</a></h3>
+                <p>MacOS malware analysis, supply chain attacks, Objective-C and Swift security implications.</p>
+                <p class="lesson-links">
+                    <a href="lessons/lesson9.html">Lesson</a> | 
+                    <a href="solutions/lesson9_solutions.html">Solutions</a>
+                </p>
+            </div>
+        </div>
+        
+        <h2>How to Use This Guide</h2>
+        
+        <ol>
+            <li>Work through the lessons sequentially, as each builds upon knowledge from previous ones.</li>
+            <li>Complete all hands-on exercises to reinforce concepts through practical application.</li>
+            <li>Refer to the solution guides if you get stuck, but attempt exercises yourself first.</li>
+            <li>Use the additional resources provided in each lesson to deepen your understanding.</li>
+        </ol>
+        
+        <h2>Setting Up Your Environment</h2>
+        
+        <p>To make the most of this course, you'll need:</p>
+        
+        <ul>
+            <li>A Mac running a recent version of macOS (or a VM)</li>
+            <li>Xcode and Command Line Tools</li>
+            <li>Homebrew package manager</li>
+            <li>Various debugging and security tools (specific instructions provided in Lesson 4)</li>
+        </ul>
+        
+        <p>For detailed setup instructions, please refer to <a href="lessons/lesson4.html">Lesson 4: Development Environment Setup</a>.</p>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 macOS Security Research Preparation Guide</p>
+    </footer>
+</body>
+</html>
