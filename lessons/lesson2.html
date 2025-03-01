@@ -48,6 +48,15 @@
             </a>
         </div>
         
+        <div class="progress-tracker">
+            <h2>Lesson Progress</h2>
+            <p>This is lesson 2 of 9 in the macOS Security Research Preparation Guide.</p>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 22%;"></div>
+            </div>
+            <p>Completed: 2/9 lessons (22%)</p>
+        </div>
+        
         <h2>Table of Contents</h2>
         <ol>
             <li><a href="#language-fundamentals">Language Fundamentals</a></li>
@@ -1110,217 +1119,491 @@ Instance variables (2+):
   _domains
   ...</code></pre>
         
-        <p>Note: The exact output will vary depending on your macOS version as the internal structure of classes can change between versions.</p>
-
         <p class="exercise-solution-link">
             <a href="../solutions/lesson2_solutions.html#exercise3-solutions">View solution for Exercise 3</a>
         </p>
         
-        <h3>Exercise 4: Simulated Security Vulnerability</h3>
+        <h3>Exercise 4: Analyzing and Exploiting a Real-World Objective-C Vulnerability</h3>
         
-        <p><strong>Task</strong>: Create and then fix a potential memory vulnerability.</p>
+        <p><strong>Task</strong>: Study and exploit a vulnerability based on CVE-2016-4631, an Objective-C memory corruption vulnerability in the TextInput system that affected macOS and iOS.</p>
         
-        <p>Create a file <code>Vulnerable.h</code>:</p>
+        <h4>Background on the Vulnerability</h4>
         
-<pre><code class="language-objectivec">// Vulnerable.h
+        <p>CVE-2016-4631 was a use-after-free vulnerability in the TextInput component. The vulnerability occurred because an object was freed while still being referenced elsewhere, allowing an attacker to potentially execute arbitrary code. We'll create a simplified, educational version of this vulnerability.</p>
+        
+        <h4>Create the Vulnerable Code Files</h4>
+        
+        <p>First, create <code>TextManager.h</code>:</p>
+        
+<pre><code class="language-objectivec">// TextManager.h
 #import &lt;Foundation/Foundation.h&gt;
 
-@interface Vulnerable : NSObject
+// Forward declaration
+@class TextInputView;
 
-- (void)processUserInput:(NSString *)input;
-- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters;
+// Delegate protocol for receiving text updates
+@protocol TextManagerDelegate &lt;NSObject&gt;
+- (void)textDidUpdate:(NSString *)text;
+@end
 
-@end</code></pre>
-        
-        <p>Create <code>Vulnerable_Buggy.m</code> (with vulnerability):</p>
-        
-<pre><code class="language-objectivec">// Vulnerable_Buggy.m
-#import "Vulnerable.h"
+// Class that manages text input and processing
+@interface TextManager : NSObject
 
-@implementation Vulnerable
+@property (nonatomic, weak) id&lt;TextManagerDelegate&gt; delegate;
+@property (nonatomic, strong) NSMutableArray *textViews;
+@property (nonatomic, strong) NSMutableDictionary *textData;
 
-- (void)processUserInput:(NSString *)input {
-    // VULNERABLE: Format string vulnerability
-    NSLog(input); // Directly using user input as format string
-    
-    // VULNERABLE: Unbounded array access
-    NSArray *parts = [input componentsSeparatedByString:@","];
-    if ([parts count] > 0) {
-        // No bounds checking
-        NSString *firstPart = parts[0];
-        NSString *secondPart = parts[1]; // Could crash if parts has only one element
-        NSLog(@"Parts: %@ and %@", firstPart, secondPart);
-    }
-}
+// Methods to manage text views
+- (void)registerTextView:(TextInputView *)textView;
+- (void)unregisterTextView:(TextInputView *)textView;
 
-- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters {
-    // VULNERABLE: Memory management issue
-    NSMutableString *result = [[NSMutableString alloc] initWithString:format];
-    
-    for (id param in parameters) {
-        [result appendFormat:@" %@", param];
-    }
-    
-    // Missing [result autorelease] in manual reference counting
-    return result; // LEAK: Caller doesn't know they need to release
-}
+// Process text from an input view
+- (void)processTextFromView:(TextInputView *)textView text:(NSString *)text;
+
+// Vulnerable method - executes a callback on all registered views
+- (void)broadcastText:(NSString *)text;
 
 @end</code></pre>
         
-        <p>Create <code>Vulnerable_Fixed.m</code> (corrected version):</p>
+        <p>Create <code>TextInputView.h</code>:</p>
         
-<pre><code class="language-objectivec">// Vulnerable_Fixed.m
-#import "Vulnerable.h"
+<pre><code class="language-objectivec">// TextInputView.h
+#import &lt;Foundation/Foundation.h&gt;
 
-@implementation Vulnerable
+@class TextManager;
 
-- (void)processUserInput:(NSString *)input {
-    // FIXED: Format string vulnerability
-    NSLog(@"%@", input); // Input used as parameter, not format string
+@interface TextInputView : NSObject
+
+@property (nonatomic, strong) NSString *identifier;
+@property (nonatomic, strong) NSString *text;
+@property (nonatomic, weak) TextManager *manager;
+
+- (instancetype)initWithIdentifier:(NSString *)identifier manager:(TextManager *)manager;
+- (void)setText:(NSString *)text;
+- (void)receiveText:(NSString *)text;
+- (void)cleanup;
+
+@end</code></pre>
+        
+        <p>Create <code>TextManager.m</code>:</p>
+        
+<pre><code class="language-objectivec">// TextManager.m
+#import "TextManager.h"
+#import "TextInputView.h"
+
+@implementation TextManager
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _textViews = [NSMutableArray array];
+        _textData = [NSMutableDictionary dictionary];
+    }
+    return self;
+}
+
+- (void)registerTextView:(TextInputView *)textView {
+    [self.textViews addObject:textView];
+    self.textData[textView.identifier] = @"";
+    NSLog(@"Registered text view: %@", textView.identifier);
+}
+
+- (void)unregisterTextView:(TextInputView *)textView {
+    // VULNERABILITY: View is removed from the array but might still be referenced elsewhere
+    [self.textViews removeObject:textView];
+    [self.textData removeObjectForKey:textView.identifier];
+    NSLog(@"Unregistered text view: %@", textView.identifier);
+}
+
+- (void)processTextFromView:(TextInputView *)textView text:(NSString *)text {
+    if (!textView || !text) return;
     
-    // FIXED: Bounded array access
-    NSArray *parts = [input componentsSeparatedByString:@","];
-    if ([parts count] > 0) {
-        NSString *firstPart = parts[0];
-        if ([parts count] > 1) {
-            NSString *secondPart = parts[1]; // Bounds checking added
-            NSLog(@"Parts: %@ and %@", firstPart, secondPart);
+    // Store the text
+    self.textData[textView.identifier] = text;
+    
+    // Notify delegate
+    if ([self.delegate respondsToSelector:@selector(textDidUpdate:)]) {
+        [self.delegate textDidUpdate:text];
+    }
+    
+    // Broadcast to other views
+    [self broadcastText:text];
+}
+
+- (void)broadcastText:(NSString *)text {
+    NSLog(@"Broadcasting text to %lu views", (unsigned long)self.textViews.count);
+    
+    // VULNERABILITY: Iterates through potentially stale objects
+    // If a view is unregistered during iteration, we could access a freed object
+    for (TextInputView *view in self.textViews) {
+        // This can cause a use-after-free if a view was unregistered but not removed from array
+        [view receiveText:text];
+    }
+}
+
+@end</code></pre>
+        
+        <p>Create <code>TextInputView.m</code>:</p>
+        
+<pre><code class="language-objectivec">// TextInputView.m
+#import "TextInputView.h"
+#import "TextManager.h"
+
+@implementation TextInputView
+
+- (instancetype)initWithIdentifier:(NSString *)identifier manager:(TextManager *)manager {
+    self = [super init];
+    if (self) {
+        _identifier = identifier;
+        _manager = manager;
+        [_manager registerTextView:self];
+    }
+    return self;
+}
+
+- (void)setText:(NSString *)text {
+    _text = text;
+    [self.manager processTextFromView:self text:text];
+}
+
+- (void)receiveText:(NSString *)text {
+    NSLog(@"View %@ received: %@", self.identifier, text);
+    // In a real app, this might update UI or process text further
+}
+
+- (void)cleanup {
+    [self.manager unregisterTextView:self];
+    // More cleanup as needed
+}
+
+- (void)dealloc {
+    NSLog(@"TextInputView %@ deallocated", self.identifier);
+}
+
+@end</code></pre>
+        
+        <h4>Create Vulnerable Program (Explicit Exploitation)</h4>
+        
+        <p>Now create a program that demonstrates and exploits the vulnerability:</p>
+        
+<pre><code class="language-objectivec">// ExploitDemo.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "TextManager.h"
+#import "TextInputView.h"
+#import &lt;objc/runtime.h&gt;
+
+// Structure to hold stolen data
+typedef struct {
+    char data[256];
+    int dataLength;
+} StolenData;
+
+// Custom object to replace freed object in memory
+@interface ExploitPayload : NSObject
+{
+    NSString *_identifier;  // Match layout of TextInputView
+    NSString *_text;
+    TextManager *_manager;
+    
+    // Additional fields for the exploit
+    StolenData *_stolenData;  // Pointer to store exfiltrated data
+}
+@end
+
+@implementation ExploitPayload
+
+- (instancetype)initWithStolenDataPointer:(StolenData *)stolenData {
+    self = [super init];
+    if (self) {
+        _identifier = @"EXPLOITED_VIEW";
+        _text = @"Exploit payload active";
+        _manager = nil;
+        _stolenData = stolenData;
+    }
+    return self;
+}
+
+// This will be called by the TextManager's broadcast method
+- (void)receiveText:(NSString *)text {
+    NSLog(@"[EXPLOIT] Payload executed with text: %@", text);
+    
+    // In a real exploit, this would be where code execution happens
+    // We'll simulate sensitive data exfiltration
+    
+    // Get sensitive data from the app (simulated)
+    NSString *sensitiveData = @"SENSITIVE_DATA: User credentials, API keys, etc.";
+    
+    // "Exfiltrate" the data (in a real attack, this might send data to a remote server)
+    if (_stolenData) {
+        [sensitiveData getCString:_stolenData->data maxLength:sizeof(_stolenData->data) encoding:NSUTF8StringEncoding];
+        _stolenData->dataLength = (int)[sensitiveData length];
+        NSLog(@"[EXPLOIT] Data exfiltrated: %d bytes", _stolenData->dataLength);
+    }
+}
+
+@end
+
+// Delegate to receive text updates
+@interface TextHandler : NSObject &lt;TextManagerDelegate&gt;
+@end
+
+@implementation TextHandler
+- (void)textDidUpdate:(NSString *)text {
+    NSLog(@"Text updated: %@", text);
+}
+@end
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        NSLog(@"--- Starting Vulnerable App Simulation ---");
+        
+        // Allocate space for stolen data
+        StolenData *stolenData = (StolenData *)malloc(sizeof(StolenData));
+        memset(stolenData, 0, sizeof(StolenData));
+        
+        // Setup the text management system
+        TextManager *manager = [[TextManager alloc] init];
+        manager.delegate = [[TextHandler alloc] init];
+        
+        // Create some text input views
+        TextInputView *view1 = [[TextInputView alloc] initWithIdentifier:@"view1" manager:manager];
+        TextInputView *view2 = [[TextInputView alloc] initWithIdentifier:@"view2" manager:manager];
+        
+        // Normal operation
+        [view1 setText:@"Hello from view 1"];
+        [view2 setText:@"Hello from view 2"];
+        
+        NSLog(@"--- Normal operation complete ---\n");
+        NSLog(@"--- Starting vulnerability exploitation ---");
+        
+        // Create a third view that we'll remove to trigger the vulnerability
+        TextInputView *targetView = [[TextInputView alloc] initWithIdentifier:@"targetView" manager:manager];
+        
+        // Set some text to verify it's working
+        [targetView setText:@"This view will be freed"];
+        
+        // Trigger the vulnerability
+        NSLog(@"Step 1: Cleaning up targetView (but not removing reference in TextManager)");
+        [targetView cleanup];  // This unregisters it from the manager's array
+        
+        // Create an autorelease pool to control when targetView is freed
+        @autoreleasepool {
+            // Force targetView to be nil, which should release it
+            NSLog(@"Step 2: Setting targetView to nil to trigger deallocation");
+            targetView = nil;
+            // At this point, manager still has a reference to the freed object
+        }
+        
+        // Force a garbage collection/memory cleanup
+        NSLog(@"Step 3: Forcing memory cleanup");
+        for (int i = 0; i < 10; i++) {
+            @autoreleasepool {
+                NSObject *temp = [NSObject new];
+                (void)temp;
+            }
+        }
+        
+        // Create a payload object that we'll try to get allocated in the same memory
+        NSLog(@"Step 4: Creating exploit payload");
+        ExploitPayload *payload = [[ExploitPayload alloc] initWithStolenDataPointer:stolenData];
+        
+        // Force the payload into memory by creating and releasing objects
+        // This is a simplified heap spray technique
+        NSLog(@"Step 5: Spraying memory to position payload");
+        for (int i = 0; i < 100; i++) {
+            @autoreleasepool {
+                [[ExploitPayload alloc] initWithStolenDataPointer:stolenData];
+            }
+        }
+        
+        // Now trigger the use-after-free by causing manager to access the freed object
+        NSLog(@"Step 6: Triggering use-after-free vulnerability");
+        [manager broadcastText:@"This will trigger the vulnerability"];
+        
+        // Check if the exploit worked by examining our stolen data
+        NSLog(@"--- Exploitation complete ---\n");
+        NSLog(@"Checking exfiltrated data:");
+        if (stolenData->dataLength > 0) {
+            NSLog(@"Exploit succeeded! Exfiltrated %d bytes", stolenData->dataLength);
+            NSLog(@"Data: %s", stolenData->data);
         } else {
-            NSLog(@"Only one part: %@", firstPart);
+            NSLog(@"Exploit may have failed or worked partially");
+        }
+        
+        // Clean up
+        free(stolenData);
+    }
+    return 0;
+}</code></pre>
+        
+        <h4>Create a Fixed Version</h4>
+        
+        <p>Now create a fixed version of the TextManager class:</p>
+        
+<pre><code class="language-objectivec">// TextManagerFixed.m
+#import "TextManager.h"
+#import "TextInputView.h"
+
+@implementation TextManager
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _textViews = [NSMutableArray array];
+        _textData = [NSMutableDictionary dictionary];
+    }
+    return self;
+}
+
+- (void)registerTextView:(TextInputView *)textView {
+    @synchronized(self) {  // FIX: Add synchronization
+        [self.textViews addObject:textView];
+        self.textData[textView.identifier] = @"";
+        NSLog(@"Registered text view: %@", textView.identifier);
+    }
+}
+
+- (void)unregisterTextView:(TextInputView *)textView {
+    @synchronized(self) {  // FIX: Add synchronization
+        [self.textViews removeObject:textView];
+        [self.textData removeObjectForKey:textView.identifier];
+        NSLog(@"Unregistered text view: %@", textView.identifier);
+    }
+}
+
+- (void)processTextFromView:(TextInputView *)textView text:(NSString *)text {
+    if (!textView || !text) return;
+    
+    @synchronized(self) {  // FIX: Add synchronization
+        // Verify the view is still registered
+        if (![self.textViews containsObject:textView]) {  // FIX: Check validity
+            NSLog(@"Warning: Attempted to process text from unregistered view");
+            return;
+        }
+        
+        // Store the text
+        self.textData[textView.identifier] = text;
+        
+        // Notify delegate
+        if ([self.delegate respondsToSelector:@selector(textDidUpdate:)]) {
+            [self.delegate textDidUpdate:text];
+        }
+        
+        // Broadcast to other views
+        [self broadcastText:text];
+    }
+}
+
+- (void)broadcastText:(NSString *)text {
+    NSArray *viewsCopy;
+    
+    @synchronized(self) {  // FIX: Add synchronization
+        // FIX: Create a copy of the array to avoid concurrent modification issues
+        viewsCopy = [self.textViews copy];
+    }
+    
+    NSLog(@"Broadcasting text to %lu views", (unsigned long)viewsCopy.count);
+    
+    // FIX: Iterate on the copy, not the original array
+    for (TextInputView *view in viewsCopy) {
+        // FIX: Check if the view is still valid
+        if ([self.textViews containsObject:view]) {
+            [view receiveText:text];
         }
     }
 }
 
-- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters {
-    // FIXED: Using ARC (no explicit memory management needed)
-    NSMutableString *result = [[NSMutableString alloc] initWithString:format];
-    
-    for (id param in parameters) {
-        [result appendFormat:@" %@", param];
-    }
-    
-    return result; // ARC properly manages the memory
-}
-
 @end</code></pre>
-        
-        <p>Create <code>main_buggy.m</code> to test the buggy version:</p>
-        
-<pre><code class="language-objectivec">// main_buggy.m
-#import &lt;Foundation/Foundation.h&gt;
-#import "Vulnerable.h"
-
-int main(int argc, const char * argv[]) {
-    @autoreleasepool {
-        Vulnerable *vuln = [[Vulnerable alloc] init];
-        
-        // Test format string vulnerability
-        NSLog(@"Testing format string vulnerability:");
-        [vuln processUserInput:@"Normal string"];
-        [vuln processUserInput:@"%p %p %p"]; // Format string attack
-        
-        // Test array bounds vulnerability
-        NSLog(@"\nTesting array bounds vulnerability:");
-        [vuln processUserInput:@"item1,item2"];
-        [vuln processUserInput:@"singleitem"]; // Will crash here
-        
-        // Memory leak test - not easily visible
-        NSLog(@"\nTesting memory management issue:");
-        NSString *message = [vuln formatLogMessage:@"Log:" 
-                             withParameters:@[@"param1", @"param2"]];
-        NSLog(@"Message: %@", message);
-    }
-    return 0;
-}</code></pre>
-        
-        <p>Create <code>main_fixed.m</code> to test the fixed version:</p>
-        
-<pre><code class="language-objectivec">// main_fixed.m
-#import &lt;Foundation/Foundation.h&gt;
-#import "Vulnerable.h"
-
-int main(int argc, const char * argv[]) {
-    @autoreleasepool {
-        Vulnerable *vuln = [[Vulnerable alloc] init];
-        
-        // Test format string vulnerability
-        NSLog(@"Testing format string vulnerability:");
-        [vuln processUserInput:@"Normal string"];
-        [vuln processUserInput:@"%p %p %p"]; // Safe now
-        
-        // Test array bounds vulnerability
-        NSLog(@"\nTesting array bounds vulnerability:");
-        [vuln processUserInput:@"item1,item2"];
-        [vuln processUserInput:@"singleitem"]; // Safe now
-        
-        // Memory leak test - fixed with ARC
-        NSLog(@"\nTesting memory management issue:");
-        NSString *message = [vuln formatLogMessage:@"Log:" 
-                             withParameters:@[@"param1", @"param2"]];
-        NSLog(@"Message: %@", message);
-    }
-    return 0;
-}</code></pre>
         
         <h4>Compilation and Running Instructions</h4>
         
         <ol>
             <li>
                 <p>Create a directory for the project:</p>
-<pre><code class="language-bash">mkdir VulnerableDemo
-cd VulnerableDemo</code></pre>
+<pre><code class="language-bash">mkdir VulnerabilityDemo
+cd VulnerabilityDemo</code></pre>
             </li>
             <li>
-                <p>Create the source files:</p>
-<pre><code class="language-bash">touch Vulnerable.h Vulnerable_Buggy.m Vulnerable_Fixed.m main_buggy.m main_fixed.m</code></pre>
+                <p>Create all the source files described above:</p>
+<pre><code class="language-bash">touch TextManager.h TextInputView.h TextManager.m TextInputView.m ExploitDemo.m TextManagerFixed.m</code></pre>
             </li>
             <li>
                 <p>Use a text editor to add the code to each file.</p>
             </li>
             <li>
-                <p>Compile the buggy version:</p>
-<pre><code class="language-bash">clang -framework Foundation main_buggy.m Vulnerable_Buggy.m -o vulnerable_buggy</code></pre>
+                <p>Compile the vulnerable version:</p>
+<pre><code class="language-bash">clang -framework Foundation ExploitDemo.m TextManager.m TextInputView.m -o vulnerable_demo</code></pre>
             </li>
             <li>
-                <p>Compile the fixed version:</p>
-<pre><code class="language-bash">clang -framework Foundation main_fixed.m Vulnerable_Fixed.m -o vulnerable_fixed -fobjc-arc</code></pre>
+                <p>Run the vulnerable version:</p>
+<pre><code class="language-bash">./vulnerable_demo</code></pre>
             </li>
             <li>
-                <p>Run the buggy version (it will crash):</p>
-<pre><code class="language-bash">./vulnerable_buggy</code></pre>
+                <p>To compile a fixed version, replace TextManager.m with TextManagerFixed.m:</p>
+<pre><code class="language-bash">mv TextManagerFixed.m TextManager.m
+clang -framework Foundation ExploitDemo.m TextManager.m TextInputView.m -o fixed_demo</code></pre>
+            </li>
+            <li>
+                <p>Run the fixed version to see that the vulnerability is patched:</p>
+<pre><code class="language-bash">./fixed_demo</code></pre>
             </li>
         </ol>
         
-        <p><strong>Expected Output (Buggy)</strong>:</p>
+        <h4>Defensive Coding Patterns for Objective-C</h4>
         
-<pre><code>Testing format string vulnerability:
-Normal string
-0x100000000 0x200000000 0x300000000  # Actual pointers will vary
-
-Testing array bounds vulnerability:
-Parts: item1 and item2
-[Crash occurs here]</code></pre>
+        <p>This vulnerability demonstrates several critical defensive coding patterns that should be used in Objective-C:</p>
         
-        <ol start="7">
-            <li>
-                <p>Run the fixed version:</p>
-<pre><code class="language-bash">./vulnerable_fixed</code></pre>
+        <ol>
+            <li><strong>Synchronize Access to Shared Data</strong>
+                <ul>
+                    <li>Use <code>@synchronized</code> blocks to protect data structures accessed by multiple threads</li>
+                    <li>Consider using dispatch queues to serialize access to critical sections</li>
+                    <li>Avoid global mutable data structures without proper synchronization</li>
+                </ul>
+            </li>
+            <li><strong>Validate Object References</strong>
+                <ul>
+                    <li>Always check if objects still exist in collections before accessing them</li>
+                    <li>Use <code>-containsObject:</code> to verify objects are still valid</li>
+                    <li>Consider using weak collections when appropriate to prevent dangling pointers</li>
+                </ul>
+            </li>
+            <li><strong>Make Defensive Copies of Collections</strong>
+                <ul>
+                    <li>When iterating over a collection that might be modified, make a copy first</li>
+                    <li>Use <code>[array copy]</code> to create a snapshot before iteration</li>
+                    <li>This prevents concurrent modification exceptions and use-after-free bugs</li>
+                </ul>
+            </li>
+            <li><strong>Proper Ownership Semantics</strong>
+                <ul>
+                    <li>Use <code>strong</code> references for objects you own</li>
+                    <li>Use <code>weak</code> references to avoid retain cycles and dangling pointers</li>
+                    <li>Consider <code>copy</code> for immutable objects to prevent unexpected mutations</li>
+                </ul>
+            </li>
+            <li><strong>Explicit Cleanup and Invalidation</strong>
+                <ul>
+                    <li>Implement cleanup methods that properly nullify references</li>
+                    <li>Set an "invalid" flag when objects should no longer be used</li>
+                    <li>Check validity flags before performing operations on potentially stale objects</li>
+                </ul>
             </li>
         </ol>
         
-        <p><strong>Expected Output (Fixed)</strong>:</p>
+        <p>By following these patterns, you can prevent many common memory corruption vulnerabilities in Objective-C applications, including the use-after-free vulnerability demonstrated in this exercise.</p>
         
-<pre><code>Testing format string vulnerability:
-Normal string
-%p %p %p
-
-Testing array bounds vulnerability:
-Parts: item1 and item2
-Only one part: singleitem
-
-Testing memory management issue:
-Message: Log: param1 param2</code></pre>
-
+        <h4>Vulnerability Detection Techniques</h4>
+        
+        <p>How to find similar vulnerabilities in real applications:</p>
+        
+        <ul>
+            <li><strong>Static Analysis</strong>: Use tools like Clang Static Analyzer to find potential use-after-free bugs</li>
+            <li><strong>Dynamic Testing</strong>: Use Address Sanitizer (ASAN) to detect memory corruption at runtime</li>
+            <li><strong>Code Review</strong>: Look for patterns where objects are removed from collections but might still be accessed</li>
+            <li><strong>Fuzzing</strong>: Generate random inputs to trigger race conditions and memory corruption bugs</li>
+        </ul>
+        
         <p class="exercise-solution-link">
             <a href="../solutions/lesson2_solutions.html#exercise4-solutions">View solution for Exercise 4</a>
         </p>
