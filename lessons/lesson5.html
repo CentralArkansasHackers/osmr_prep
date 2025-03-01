@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research - Lesson 5: Reverse Engineering on MacOS</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+    
+    <!-- Mermaid JS for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="../js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lesson1.html">1. MacOS Fundamentals</a></li>
+                <li><a href="lesson2.html">2. Objective-C Primer</a></li>
+                <li><a href="lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="lesson4.html">4. Development Environment</a></li>
+                <li><a href="lesson5.html" class="current">5. Reverse Engineering</a></li>
+                <li><a href="lesson6.html">6. Exploit Development</a></li>
+                <li><a href="lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>Lesson 5: Reverse Engineering on MacOS</h1>
+        
+        <div class="introduction">
+            <p>Reverse engineering is a crucial skill for macOS security researchers, allowing them to understand the inner workings of applications and system components without access to source code. This lesson covers tools and techniques for both static and dynamic analysis of macOS software, focusing on the unique aspects of Apple's ecosystem including Mach-O binaries, Objective-C runtime, and macOS-specific frameworks.</p>
+        </div>
+        
+        <div class="solutions-link">
+            <a href="../solutions/lesson5_solutions.html" class="btn btn-primary">
+                <span class="icon">📝</span> View Solutions for this Lesson
+            </a>
+        </div>
+        
+        <div class="progress-tracker">
+            <h2>Lesson Progress</h2>
+            <p>This is lesson 5 of 9 in the macOS Security Research Preparation Guide.</p>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: 55%;"></div>
+            </div>
+            <p>Completed: 5/9 lessons (55%)</p>
+        </div>
+        
+        <h2>Table of Contents</h2>
+        <ol>
+            <li><a href="#reverse-engineering-basics">Reverse Engineering Basics</a></li>
+            <li><a href="#macos-binary-format">MacOS Binary Format (Mach-O)</a></li>
+            <li><a href="#static-analysis">Static Analysis Tools and Techniques</a></li>
+            <li><a href="#objective-c-analysis">Objective-C and Swift Binary Analysis</a></li>
+            <li><a href="#dynamic-analysis">Dynamic Analysis and Debugging</a></li>
+            <li><a href="#framework-analysis">Analyzing Frameworks and Libraries</a></li>
+            <li><a href="#code-signing-analysis">Code Signing and Entitlement Analysis</a></li>
+            <li><a href="#hands-on-exercises">Hands-on Exercises</a></li>
+            <li><a href="#additional-resources">Additional Resources</a></li>
+        </ol>
+        
+        <h2 id="reverse-engineering-basics">1. Reverse Engineering Basics</h2>
+        
+        <p>Reverse engineering is the process of analyzing software to understand its design, functionality, and behavior. For security researchers, it's essential to identify vulnerabilities, understand protection mechanisms, and analyze malware.</p>
+        
+        <h3>Why Reverse Engineer macOS Software?</h3>
+        
+        <ul>
+            <li><strong>Vulnerability Research</strong>: Identify security flaws in applications or system components</li>
+            <li><strong>Malware Analysis</strong>: Understand how malware operates on macOS systems</li>
+            <li><strong>Security Assessment</strong>: Evaluate the security of applications by understanding their internals</li>
+            <li><strong>Interoperability</strong>: Understand protocols and file formats for compatibility</li>
+            <li><strong>Learning</strong>: Gain deeper understanding of macOS internals and application development</li>
+        </ul>
+        
+        <h3>The Reverse Engineering Process</h3>
+        
+        <div class="mermaid">
+        flowchart TD
+            A[Binary or Application] --> B[Initial Reconnaissance]
+            B --> C[Static Analysis]
+            B --> D[Dynamic Analysis]
+            C --> E[Code Understanding]
+            D --> E
+            E --> F[Documentation]
+            
+            subgraph "Initial Reconnaissance"
+                B1[Basic File Information]
+                B2[Dependencies]
+                B3[Strings and Resources]
+                B4[Security Features]
+            end
+            
+            subgraph "Static Analysis"
+                C1[Disassembly]
+                C2[Decompilation]
+                C3[Control Flow Analysis]
+                C4[Data Flow Analysis]
+            end
+            
+            subgraph "Dynamic Analysis"
+                D1[Debugging]
+                D2[Tracing]
+                D3[Monitoring]
+                D4[Fuzzing]
+            end
+        </div>
+        
+        <h3>Legal and Ethical Considerations</h3>
+        
+        <p>Before reverse engineering any software, it's important to understand the legal and ethical implications:</p>
+        
+        <ul>
+            <li><strong>License Agreements</strong>: Many software licenses explicitly prohibit reverse engineering</li>
+            <li><strong>Intellectual Property</strong>: Reverse engineering might involve bypassing technical protection measures</li>
+            <li><strong>Responsible Disclosure</strong>: If you find vulnerabilities, follow ethical disclosure practices</li>
+            <li><strong>Testing Environment</strong>: Always work in isolated environments, especially when analyzing malware</li>
+        </ul>
+        
+        <div class="note">
+            <p><strong>Note:</strong> This course is intended for educational purposes. Always ensure that your reverse engineering activities comply with applicable laws and ethical standards. Generally, reverse engineering your own devices or open-source software presents fewer legal concerns.</p>
+        </div>
+        
+        <h2 id="macos-binary-format">2. MacOS Binary Format (Mach-O)</h2>
+        
+        <p>macOS uses the Mach-O (Mach Object) file format for executables, libraries, and object code. Understanding this format is essential for effective reverse engineering.</p>
+        
+        <h3>Mach-O File Structure</h3>
+        
+        <div class="mermaid">
+        flowchart TD
+            A[Mach-O File] --> B[Header]
+            A --> C[Load Commands]
+            A --> D[Data/Segments]
+            
+            B --> B1[Magic Number]
+            B --> B2[CPU Type]
+            B --> B3[File Type]
+            
+            C --> C1[LC_SEGMENT/LC_SEGMENT_64]
+            C --> C2[LC_SYMTAB]
+            C --> C3[LC_DYLD_INFO]
+            C --> C4[LC_CODE_SIGNATURE]
+            
+            D --> D1[__TEXT Segment]
+            D --> D2[__DATA Segment]
+            D --> D3[__LINKEDIT Segment]
+            
+            D1 --> D1A[__text section]
+            D1 --> D1B[__stubs section]
+            D1 --> D1C[__objc_methname section]
+            
+            D2 --> D2A[__data section]
+            D2 --> D2B[__objc_data section]
+            D2 --> D2C[__objc_classlist section]
+        </div>
+        
+        <h4>Key Components of Mach-O Files</h4>
+        
+        <ul>
+            <li><strong>Header</strong>: Contains basic file information (architecture, type)</li>
+            <li><strong>Load Commands</strong>: Instructions for the dynamic linker (dyld)</li>
+            <li><strong>Segments</strong>: Contain sections with code and data</li>
+        </ul>
+        
+        <p>Common segments in Mach-O files:</p>
+        
+        <ul>
+            <li><strong>__TEXT</strong>: Contains executable code (read-only, executable)</li>
+            <li><strong>__DATA</strong>: Contains modifiable data (read-write, non-executable)</li>
+            <li><strong>__LINKEDIT</strong>: Contains metadata for linking (symbol tables, etc.)</li>
+            <li><strong>__OBJC</strong>: Contains Objective-C specific data</li>
+        </ul>
+        
+        <h3>Universal Binaries (Fat Binaries)</h3>
+        
+        <p>macOS applications are often distributed as universal binaries that contain code for multiple architectures (e.g., x86_64 and ARM64).</p>
+        
+<pre><code class="language-bash"># Check if a binary is universal
+file /bin/ls
+
+# Expected output:
+# /bin/ls: Mach-O universal binary with 2 architectures: [x86_64:Mach-O 64-bit executable x86_64] [arm64e:Mach-O 64-bit executable arm64e]</code></pre>
+        
+        <h3>Examining Mach-O Files</h3>
+        
+<pre><code class="language-bash"># View basic file information
+file /bin/ls
+
+# Examine Mach-O header
+otool -h /bin/ls
+
+# List load commands
+otool -l /bin/ls
+
+# View segments and sections
+otool -l /bin/ls | grep -A5 LC_SEGMENT
+
+# List shared libraries
+otool -L /bin/ls
+
+# Disassemble text section
+otool -tV /bin/ls</code></pre>
+        
+        <h3>Interesting Sections for Security Research</h3>
+        
+        <ul>
+            <li><strong>__objc_classlist</strong>: Contains Objective-C class definitions</li>
+            <li><strong>__objc_methname</strong>: Contains method names</li>
+            <li><strong>__objc_selrefs</strong>: Contains references to selectors</li>
+            <li><strong>__cstring</strong>: Contains C string literals</li>
+            <li><strong>__mod_init_func</strong>: Contains constructor functions</li>
+            <li><strong>__la_symbol_ptr</strong>: Contains lazy symbol pointers</li>
+        </ul>
+        
+        <h2 id="static-analysis">3. Static Analysis Tools and Techniques</h2>
+        
+        <p>Static analysis examines software without executing it, focusing on code, structure, and resources.</p>
+        
+        <h3>Command-Line Tools</h3>
+        
+        <p>macOS provides several command-line tools for binary analysis:</p>
+        
+<pre><code class="language-bash"># Basic file examination
+file /Applications/Safari.app/Contents/MacOS/Safari
+
+# String extraction
+strings /Applications/Safari.app/Contents/MacOS/Safari
+
+# Symbol table examination
+nm /Applications/Safari.app/Contents/MacOS/Safari
+
+# Disassembly with otool
+otool -tV /Applications/Safari.app/Contents/MacOS/Safari
+
+# Examine dynamic libraries
+otool -L /Applications/Safari.app/Contents/MacOS/Safari
+
+# Extract Objective-C class information
+class-dump /Applications/Safari.app/Contents/MacOS/Safari</code></pre>
+        
+        <h3>Disassemblers and Decompilers</h3>
+        
+        <p>Several advanced tools are available for deeper static analysis:</p>
+        
+        <h4>Hopper Disassembler</h4>
+        
+        <p>Hopper is a popular reverse engineering tool for macOS that provides both disassembly and pseudo-code decompilation:</p>
+        
+        <ul>
+            <li>Interactive disassembly</li>
+            <li>Control flow graph visualization</li>
+            <li>Pseudo-code generation</li>
+            <li>Objective-C class and method detection</li>
+            <li>Cross-references (xrefs) between functions</li>
+        </ul>
+        
+        <div class="note">
+            <p><strong>Note:</strong> Hopper is commercial software, but offers a limited free demo.</p>
+        </div>
+        
+        <h4>Ghidra</h4>
+        
+        <p>Ghidra is a free, open-source software reverse engineering tool developed by the NSA:</p>
+        
+        <ul>
+            <li>Multi-platform support</li>
+            <li>Powerful decompiler</li>
+            <li>Collaborative analysis features</li>
+            <li>Scripting support (Python and Java)</li>
+            <li>Mach-O file format support</li>
+        </ul>
+        
+<pre><code class="language-bash"># Launch Ghidra
+ghidraRun</code></pre>
+        
+        <div class="note">
+            <p><strong>Note:</strong> For Apple Silicon Macs, you may need to run Ghidra with Rosetta 2.</p>
+        </div>
+        
+        <h4>IDA Pro</h4>
+        
+        <p>IDA Pro is the industry standard for reverse engineering, though it is commercial software:</p>
+        
+        <ul>
+            <li>Advanced disassembly and decompilation</li>
+            <li>Extensive file format support</li>
+            <li>Powerful scripting (IDAPython)</li>
+            <li>Debugger integration</li>
+            <li>Extensible with plugins</li>
+        </ul>
+        
+        <h4>Radare2 and Cutter</h4>
+        
+        <p>Radare2 is a free and open-source reverse engineering framework:</p>
+        
+<pre><code class="language-bash"># Basic analysis with Radare2
+r2 /Applications/Calculator.app/Contents/MacOS/Calculator
+
+# Inside r2:
+# aaa (analyze all)
+# afl (list functions)
+# pdf @ main (disassemble main)</code></pre>
+        
+        <p>Cutter provides a graphical interface for Radare2, making it more accessible.</p>
+        
+        <h3>Resource Analysis</h3>
+        
+        <p>Applications store valuable information in resource files and property lists:</p>
+        
+<pre><code class="language-bash"># Examine Info.plist
+plutil -p /Applications/Safari.app/Contents/Info.plist
+
+# List application resources
+ls -la /Applications/Safari.app/Contents/Resources/
+
+# Examine property lists
+find /Applications/Safari.app -name "*.plist" -exec plutil -p {} \; | less</code></pre>
+        
+        <h2 id="objective-c-analysis">4. Objective-C and Swift Binary Analysis</h2>
+        
+        <p>Analyzing Objective-C and Swift binaries requires understanding their unique characteristics.</p>
+        
+        <h3>Objective-C Binary Structure</h3>
+        
+        <p>Objective-C's dynamic runtime leaves a significant amount of metadata in binaries:</p>
+        
+        <ul>
+            <li>Class definitions</li>
+            <li>Method names (selectors)</li>
+            <li>Instance variable names</li>
+            <li>Property attributes</li>
+        </ul>
+        
+        <h4>class-dump Tool</h4>
+        
+        <p>class-dump extracts Objective-C class interfaces from compiled binaries:</p>
+        
+<pre><code class="language-bash"># Extract class information
+class-dump /Applications/Calculator.app/Contents/MacOS/Calculator > Calculator_classes.h
+
+# Focus on specific classes
+class-dump -f "Calculator*" /Applications/Calculator.app/Contents/MacOS/Calculator</code></pre>
+        
+        <p>Example output:</p>
+        
+<pre><code class="language-objectivec">@interface CalculatorViewController : NSViewController
+{
+    CalculatorModel *_model;
+    NSTextField *_displayField;
+    NSNumberFormatter *_numberFormatter;
+    BOOL _clearOnNextDigit;
+}
+
+@property(retain) NSNumberFormatter *numberFormatter;
+@property BOOL clearOnNextDigit;
+@property(retain) NSTextField *displayField;
+@property(retain) CalculatorModel *model;
+
+- (void)updateDisplay;
+- (void)clear:(id)sender;
+- (void)equals:(id)sender;
+- (void)digit:(id)sender;
+- (void)operation:(id)sender;
+@end</code></pre>
+        
+        <h3>Objective-C Method Tracing</h3>
+        
+        <p>Objective-C method calls use selectors that are visible in the binary:</p>
+        
+<pre><code class="language-bash"># Extract Objective-C method names
+otool -v -s __DATA __objc_selrefs /Applications/Calculator.app/Contents/MacOS/Calculator</code></pre>
+        
+        <h3>Swift Binary Analysis</h3>
+        
+        <p>Swift binaries are more challenging to analyze than Objective-C, as they contain less runtime metadata:</p>
+        
+        <ul>
+            <li>Swift uses name mangling for symbols</li>
+            <li>Type information is less explicit</li>
+            <li>More static binding reduces metadata</li>
+        </ul>
+        
+<pre><code class="language-bash"># Examine Swift symbols
+nm /Applications/SwiftApp.app/Contents/MacOS/SwiftApp | grep _T0
+
+# Use Swift demangle tool
+xcrun swift-demangle s:6MyApp5HelloC4nameSSvg</code></pre>
+        
+        <h3>Mixed Objective-C and Swift Analysis</h3>
+        
+        <p>Many modern applications use both languages, requiring a combined approach:</p>
+        
+<pre><code class="language-bash"># Check for Swift usage
+otool -L /Applications/MyApp.app/Contents/MacOS/MyApp | grep -i swift
+
+# Look for Swift-ObjC bridging
+nm /Applications/MyApp.app/Contents/MacOS/MyApp | grep "_TtC"</code></pre>
+        
+        <h2 id="dynamic-analysis">5. Dynamic Analysis and Debugging</h2>
+        
+        <p>Dynamic analysis examines software during execution, providing insights into runtime behavior.</p>
+        
+        <h3>Debugging with LLDB</h3>
+        
+        <p>LLDB is the primary debugger for macOS development and reverse engineering:</p>
+        
+<pre><code class="language-bash"># Start an application with LLDB
+lldb /Applications/Calculator.app/Contents/MacOS/Calculator
+
+# Common LLDB commands:
+(lldb) breakpoint set --name viewDidLoad
+(lldb) run
+(lldb) bt  # backtrace
+(lldb) frame variable  # show variables
+(lldb) po self  # print object description
+(lldb) x/10i $pc  # examine 10 instructions</code></pre>
+        
+        <h3>Setting Interesting Breakpoints</h3>
+        
+<pre><code class="language-bash"># Break on method name pattern
+(lldb) breakpoint set --method "-[Calculator* *Button*]"
+
+# Break on specific selector
+(lldb) breakpoint set --selector dealloc
+
+# Break on Objective-C message send
+(lldb) breakpoint set --name objc_msgSend
+(lldb) breakpoint set --name objc_msgSend --condition '(char *)$rdi == "viewDidLoad"'
+
+# Break on function
+(lldb) breakpoint set -n malloc</code></pre>
+        
+        <h3>Tracing with DTrace</h3>
+        
+        <p>DTrace is a powerful tracing framework for observing system behavior:</p>
+        
+<pre><code class="language-bash"># Trace process creation
+sudo dtrace -n 'proc:::exec-success { printf("%s %s",execname,curpsinfo->pr_psargs); }'
+
+# Trace Objective-C method calls
+sudo dtrace -n 'objc$target:NSView:-*:entry { printf("%s[%s %s]\n", probefunc, probemod, (string)arg0); }' -p $PID
+
+# Trace file operations
+sudo dtrace -n 'syscall::open*:entry { printf("%s %s", execname, copyinstr(arg0)); }'</code></pre>
+        
+        <div class="warning">
+            <p><strong>Warning:</strong> SIP restricts DTrace's ability to trace system processes. For full functionality, you may need to disable SIP in a test environment.</p>
+        </div>
+        
+        <h3>Monitoring Tools</h3>
+        
+        <p>Several tools help monitor application behavior:</p>
+        
+<pre><code class="language-bash"># Monitor file system operations
+sudo fs_usage -f filesystem Calculator
+
+# Monitor network activity
+sudo tcpdump -i en0 host example.com
+
+# Monitor process activity
+sudo opensnoop -n Calculator
+
+# Trace system calls
+sudo dtruss -n Calculator</code></pre>
+        
+        <h3>Frida Dynamic Instrumentation</h3>
+        
+        <p>Frida is a powerful dynamic instrumentation toolkit that allows you to inject JavaScript into native applications:</p>
+        
+<pre><code class="language-javascript">// Example Frida script to hook NSURLConnection
+const NSURLConnection = ObjC.classes.NSURLConnection;
+Interceptor.attach(NSURLConnection["+ sendAsynchronousRequest:queue:completionHandler:"].implementation, {
+    onEnter: function(args) {
+        const request = ObjC.Object(args[2]);
+        console.log("[+] URL Request: " + request.URL().absoluteString());
+        console.log("[+] Method: " + request.HTTPMethod());
+    }
+});</code></pre>
+        
+<pre><code class="language-bash"># Run Frida script against a process
+frida -l monitor_network.js -f /Applications/MyApp.app/Contents/MacOS/MyApp</code></pre>
+        
+        <h3>Runtime Manipulation</h3>
+        
+        <p>The Objective-C runtime can be manipulated to modify behavior:</p>
+        
+<pre><code class="language-objectivec"># Using cycript (http://www.cycript.org/)
+$ cycript -p Calculator
+cy# [UIApp windows]
+cy# var w = [[UIApp windows] objectAtIndex:0]
+cy# var vc = [w rootViewController]
+cy# [vc _printHierarchy]
+cy# [vc setValue:@"Hacked!" forKey:@"title"]</code></pre>
+        
+        <h2 id="framework-analysis">6. Analyzing Frameworks and Libraries</h2>
+        
+        <p>macOS applications rely heavily on frameworks for functionality.</p>
+        
+        <h3>Framework Structure</h3>
+        
+        <p>Frameworks in macOS follow a specific structure:</p>
+        
+<pre><code class="language-bash"># Examine framework structure
+ls -la /System/Library/Frameworks/Foundation.framework/
+ls -la /System/Library/Frameworks/Foundation.framework/Versions/</code></pre>
+        
+        <h3>Identifying Framework Dependencies</h3>
+        
+<pre><code class="language-bash"># List framework dependencies
+otool -L /Applications/Safari.app/Contents/MacOS/Safari
+
+# Find where a symbol is defined
+nm -arch x86_64 /usr/lib/libc++.1.dylib | grep "T _malloc"</code></pre>
+        
+        <h3>Private Frameworks</h3>
+        
+        <p>macOS includes many private frameworks that aren't part of the public API:</p>
+        
+<pre><code class="language-bash"># Explore private frameworks
+ls -la /System/Library/PrivateFrameworks/
+
+# Analyze a private framework
+class-dump /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Apple80211</code></pre>
+        
+        <h3>Framework Method Swizzling</h3>
+        
+        <p>Method swizzling allows runtime replacement of methods:</p>
+        
+<pre><code class="language-objectivec">@implementation NSURLConnection (Swizzle)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class class = [self class];
+        
+        SEL originalSelector = @selector(sendSynchronousRequest:returningResponse:error:);
+        SEL swizzledSelector = @selector(swizzled_sendSynchronousRequest:returningResponse:error:);
+        
+        Method originalMethod = class_getClassMethod(class, originalSelector);
+        Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
+        
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    });
+}
+
++ (NSData *)swizzled_sendSynchronousRequest:(NSURLRequest *)request 
+                          returningResponse:(NSURLResponse **)response 
+                                      error:(NSError **)error {
+    NSLog(@"Intercepted URL request to: %@", request.URL.absoluteString);
+    return [self swizzled_sendSynchronousRequest:request 
+                               returningResponse:response 
+                                           error:error];
+}
+
+@end</code></pre>
+        
+        <h2 id="code-signing-analysis">7. Code Signing and Entitlement Analysis</h2>
+        
+        <p>macOS uses code signing to verify application integrity and entitlements to control capabilities.</p>
+        
+        <h3>Examining Code Signatures</h3>
+        
+<pre><code class="language-bash"># Verify code signature
+codesign -vv -d /Applications/Safari.app
+
+# Check if binary is signed
+spctl -a -vv /Applications/Safari.app</code></pre>
+        
+        <h3>Analyzing Entitlements</h3>
+        
+<pre><code class="language-bash"># Extract entitlements
+codesign -d --entitlements :- /Applications/Safari.app</code></pre>
+        
+        <p>Example output:</p>
+        
+<pre><code class="language-xml"><?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.network.server</key>
+    <true/>
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+</dict>
+</plist></code></pre>
+        
+        <h3>Identifying Protection Mechanisms</h3>
+        
+<pre><code class="language-bash"># Check for hardened runtime
+codesign -d --verbose=4 /Applications/Safari.app 2>&1 | grep runtime
+
+# Check for App Transport Security settings
+plutil -p /Applications/MyApp.app/Contents/Info.plist | grep NSAppTransportSecurity</code></pre>
+        
+        <h2 id="hands-on-exercises">8. Hands-on Exercises</h2>
+        
+        <h3>Exercise 1: Basic Binary Analysis</h3>
+        
+        <p><strong>Task</strong>: Analyze the structure and components of a macOS system binary.</p>
+        
+<pre><code class="language-bash"># Copy a system binary for analysis
+cp /bin/ls ~/Desktop/ls_binary
+
+# Analyze the binary structure
+file ~/Desktop/ls_binary
+otool -h ~/Desktop/ls_binary
+otool -l ~/Desktop/ls_binary | less
+
+# Examine symbols and libraries
+nm ~/Desktop/ls_binary | grep " T " | head
+otool -L ~/Desktop/ls_binary
+
+# Extract strings
+strings ~/Desktop/ls_binary | less</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>Is this a universal binary? If so, what architectures does it support?</li>
+            <li>What shared libraries does it depend on?</li>
+            <li>Can you identify the main function?</li>
+            <li>What interesting strings can you find that hint at the binary's functionality?</li>
+        </ol>
+        
+        <h3>Exercise 2: Objective-C Application Analysis</h3>
+        
+        <p><strong>Task</strong>: Analyze an Objective-C application to understand its structure.</p>
+        
+<pre><code class="language-bash"># Copy Calculator app for analysis (don't modify the original)
+cp -R /Applications/Calculator.app ~/Desktop/
+
+# Analyze the application binary
+otool -L ~/Desktop/Calculator.app/Contents/MacOS/Calculator
+
+# Extract Objective-C class information
+class-dump ~/Desktop/Calculator.app/Contents/MacOS/Calculator > ~/Desktop/Calculator_classes.h
+
+# Find interesting methods
+grep -A 5 "controller" ~/Desktop/Calculator_classes.h
+grep -A 5 "calculation" ~/Desktop/Calculator_classes.h</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>What are the main classes in the Calculator application?</li>
+            <li>Can you identify the model-view-controller pattern in the code?</li>
+            <li>What methods handle calculation operations?</li>
+            <li>What frameworks does the application depend on?</li>
+        </ol>
+        
+        <h3>Exercise 3: Dynamic Analysis with LLDB</h3>
+        
+        <p><strong>Task</strong>: Debug a running application to observe its behavior.</p>
+        
+<pre><code class="language-bash"># Start Calculator with LLDB
+lldb /Applications/Calculator.app/Contents/MacOS/Calculator
+
+# In LLDB:
+breakpoint set --name "-[CalculatorViewController digit:]"
+breakpoint set --name "-[CalculatorViewController operation:]"
+breakpoint set --name "-[CalculatorViewController equals:]"
+run</code></pre>
+        
+        <p>After the application launches:</p>
+        <ol>
+            <li>Click on digit buttons and observe when breakpoints hit</li>
+            <li>Examine program state using LLDB commands:
+<pre><code class="language-bash">po self
+po [self displayField]
+po [[self displayField] stringValue]
+po [self model]</code></pre>
+            </li>
+            <li>Continue execution and test different operations</li>
+        </ol>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>How does the application process button clicks?</li>
+            <li>What happens when you click on an operation button?</li>
+            <li>How is the display value updated?</li>
+            <li>Can you trace the flow of data in the application?</li>
+        </ol>
+        
+        <h3>Exercise 4: Framework Analysis</h3>
+        
+        <p><strong>Task</strong>: Analyze a macOS framework to understand its capabilities.</p>
+        
+<pre><code class="language-bash"># Choose a framework to analyze
+FRAMEWORK="/System/Library/Frameworks/Security.framework/Versions/Current/Security"
+
+# Examine framework structure
+ls -la /System/Library/Frameworks/Security.framework/
+
+# Analyze the binary
+otool -L $FRAMEWORK
+class-dump $FRAMEWORK > ~/Desktop/Security_framework.h
+
+# Look for interesting functionality
+grep -A 5 "password" ~/Desktop/Security_framework.h
+grep -A 5 "keychain" ~/Desktop/Security_framework.h</code></pre>
+        
+        <p><strong>Questions</strong>:</p>
+        <ol>
+            <li>What are the main classes and functions in this framework?</li>
+            <li>What security-related functionality does it provide?</li>
+            <li>Can you identify any potential security-sensitive APIs?</li>
+            <li>How might an application use this framework?</li>
+        </ol>
+        
+        <h3>Challenge: Find the Hidden Functionality</h3>
+        
+        <p><strong>Task</strong>: You're examining a macOS application and suspect it contains hidden functionality not visible in the user interface.</p>
+        
+        <ol>
+            <li>Download a free, open-source macOS application of your choice</li>
+            <li>Use the tools covered in this lesson to:
+                <ul>
+                    <li>Extract all string constants and look for suspicious or hidden commands</li>
+                    <li>Analyze class and method names for hints of hidden features</li>
+                    <li>Look for conditional code paths that might be triggered by special inputs</li>
+                    <li>Identify any security-related functionality that isn't documented</li>
+                </ul>
+            </li>
+            <li>Document your findings with:
+                <ul>
+                    <li>A list of commands you used</li>
+                    <li>Screenshots of relevant disassembly or decompiled code</li>
+                    <li>Your analysis of what the hidden functionality does</li>
+                    <li>How you might trigger the functionality as a user</li>
+                </ul>
+            </li>
+        </ol>
+        
+        <p><strong>Suggested Applications to Analyze</strong>:</p>
+        <ul>
+            <li>An open-source text editor</li>
+            <li>A media player application</li>
+            <li>A productivity tool</li>
+            <li>A utility application</li>
+        </ul>
+        
+        <p><strong>Tip</strong>: Look for terms like "debug," "test," "hidden," "admin," or "secret" in strings and method names.</p>
+        
+        <h2 id="additional-resources">9. Additional Resources</h2>
+        
+        <h3>Books and Documentation</h3>
+        
+        <ul>
+            <li><a href="https://www.amazon.com/Mac-OS-iOS-Internals-Apples/dp/1118057651">Mac OS X and iOS Internals</a> by Jonathan Levin</li>
+            <li><a href="https://www.amazon.com/Mac-Hackers-Handbook-Charlie-Miller/dp/0470395362">The Mac Hacker's Handbook</a> by Charlie Miller & Dino Dai Zovi</li>
+            <li><a href="https://www.amazon.com/Practical-Reverse-Engineering-Reversing-Obfuscation/dp/1118787315">Practical Reverse Engineering</a> by Bruce Dang, et al.</li>
+            <li><a href="https://developer.apple.com/library/archive/documentation/Performance/Conceptual/CodeFootprint/Articles/MachOOverview.html">Mach-O Programming Topics</a> - Apple's documentation</li>
+        </ul>
+        
+        <h3>Tools</h3>
+        
+        <ul>
+            <li><a href="https://www.hopperapp.com/">Hopper Disassembler</a> - Interactive disassembler with pseudo-code generation</li>
+            <li><a href="https://ghidra-sre.org/">Ghidra</a> - NSA's software reverse engineering tool</li>
+            <li><a href="https://github.com/frida/frida">Frida</a> - Dynamic instrumentation toolkit</li>
+            <li><a href="https://github.com/nygard/class-dump">class-dump</a> - Extract Objective-C class information</li>
+            <li><a href="https://github.com/radareorg/radare2">Radare2</a> and <a href="https://cutter.re/">Cutter</a> - Open source reverse engineering tools</li>
+            <li><a href="https://www.hex-rays.com/products/ida/">IDA Pro</a> - Professional disassembler and debugger</li>
+        </ul>
+        
+        <h3>Websites and Tutorials</h3>
+        
+        <ul>
+            <li><a href="https://reverse.put.as/">Reverse Engineering</a> - Resources and tutorials</li>
+            <li><a href="https://web.archive.org/web/20200509055300/https://www.newosxbook.com/index.php">Mac OS X Internals</a> - Jonathan Levin's site</li>
+            <li><a href="https://objective-see.org/blog.html">Objective-See Blog</a> - Patrick Wardle's macOS security blog</li>
+            <li><a href="https://knight.sc/">knight.sc</a> - Brandon Azad's blog on macOS/iOS security</li>
+        </ul>
+        
+        <h3>Video Tutorials and Presentations</h3>
+        
+        <ul>
+            <li><a href="https://www.youtube.com/watch?v=NVpx_f_Grams">Reversing macOS: a journey from userland to kernel</a> - DEFCON 27</li>
+            <li><a href="https://www.youtube.com/watch?v=fGmEHPGpaj8">Attacking the macOS/iOS Software Development Kit</a> - Black Hat Europe 2020</li>
+            <li><a href="https://www.youtube.com/watch?v=jqrw-VpYekY">The Mac Hacker's Handbook</a> - DEFCON 17</li>
+            <li><a href="https://www.youtube.com/watch?v=USBPsKrBh6w">Reverse Engineering with Ghidra for macOS Binaries</a> - Practical tutorial</li>
+            <li><a href="https://www.youtube.com/watch?v=PCuGX2JTxkQ">Introduction to Hopper Disassembler</a> - Detailed walkthrough</li>
+            <li><a href="https://www.youtube.com/watch?v=VVdh4V7_xJ4">LLDB Debugging Tutorial</a> - Hands-on debugging guide</li>
+            <li><a href="https://www.youtube.com/watch?v=CJhGRYHZ2fY">Frida for Beginners</a> - Introduction to Frida instrumentation</li>
+            <li><a href="https://www.youtube.com/playlist?list=PLhixgUqwRTjxglIswKp9mpkfPNfHkzyeN">iOS/macOS Application Reversing</a> - Comprehensive video series</li>
+        </ul>
+        
+        <h2>Conclusion</h2>
+        
+        <p>This lesson covered the essential tools and techniques for reverse engineering macOS applications and system components. You've learned about the Mach-O binary format, static and dynamic analysis, Objective-C/Swift binary analysis, and framework inspection. With these skills, you can begin dissecting macOS software to understand its inner workings and identify potential security issues.</p>
+        
+        <p>In the next lesson, we'll build upon these reverse engineering concepts to explore exploit development fundamentals, including memory corruption, buffer overflows, and format string vulnerabilities specific to the macOS environment.</p>
+        
+        <div class="lesson-navigation">
+            <div class="prev-lesson">
+                <a href="lesson4.html">← Previous: Development Environment Setup</a>
+            </div>
+            <div class="next-lesson">
+                <a href="lesson6.html">Next: Exploit Development Fundamentals →</a>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 macOS Security Research Preparation Guide</p>
+        <p>
+            <a href="../index.html">Home</a> | 
+            <a href="../solutions/lesson5_solutions.html">Solutions for Lesson 5</a>
+        </p>
+    </footer>
+    
+    <!-- Syntax highlighting JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>
