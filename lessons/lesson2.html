@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research - Lesson 2: Objective-C Primer</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+    
+    <!-- Mermaid JS for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="../js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lesson1.html">1. MacOS Fundamentals</a></li>
+                <li><a href="lesson2.html" class="current">2. Objective-C Primer</a></li>
+                <li><a href="lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="lesson4.html">4. Development Environment</a></li>
+                <li><a href="lesson5.html">5. Reverse Engineering</a></li>
+                <li><a href="lesson6.html">6. Exploit Development</a></li>
+                <li><a href="lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>Lesson 2: Objective-C Primer</h1>
+        
+        <div class="introduction">
+            <p>Objective-C is a fundamental programming language for macOS security research. Despite the increasing adoption of Swift in Apple's ecosystem, Objective-C remains critically important because most system frameworks, legacy applications, and security-relevant components are written in it. Understanding Objective-C is essential for effectively analyzing, reverse engineering, and exploiting macOS applications and system components.</p>
+        </div>
+        
+        <div class="solutions-link">
+            <a href="../solutions/lesson2_solutions.html" class="btn btn-primary">
+                <span class="icon">📝</span> View Solutions for this Lesson
+            </a>
+        </div>
+        
+        <h2>Table of Contents</h2>
+        <ol>
+            <li><a href="#language-fundamentals">Language Fundamentals</a></li>
+            <li><a href="#object-oriented-programming">Object-Oriented Programming in Objective-C</a></li>
+            <li><a href="#memory-management">Memory Management</a></li>
+            <li><a href="#runtime-system">Runtime System</a></li>
+            <li><a href="#interacting-with-cocoa">Interacting with Cocoa Frameworks</a></li>
+            <li><a href="#security-implications">Security Implications</a></li>
+            <li><a href="#hands-on-exercises">Hands-on Exercises</a></li>
+            <li><a href="#additional-resources">Additional Resources</a></li>
+        </ol>
+        
+        <h2 id="language-fundamentals">1. Language Fundamentals</h2>
+        
+        <p>Objective-C is a superset of C that adds object-oriented programming capabilities and a dynamic runtime. This means that all valid C code is also valid Objective-C code.</p>
+        
+        <div class="mermaid">
+        flowchart TD
+            A[Objective-C] --> B[C Language]
+            A --> C[Object-Oriented Extensions]
+            A --> D[Dynamic Runtime]
+            C --> E[Classes]
+            C --> F[Messages]
+            C --> G[Properties]
+            D --> H[Introspection]
+            D --> I[Dynamic Binding]
+            D --> J[Method Swizzling]
+        </div>
+        
+        <h3>Basic Syntax</h3>
+        
+        <p>Objective-C adds new syntax elements to C, most notably for method declarations and message sending.</p>
+        
+        <h4>File Extensions</h4>
+        
+        <ul>
+            <li><code>.h</code> - Header files (interface declarations)</li>
+            <li><code>.m</code> - Implementation files (method implementations)</li>
+            <li><code>.mm</code> - Files that contain both Objective-C and C++ code</li>
+        </ul>
+        
+        <h4>Class Interface Declaration</h4>
+        
+<pre><code class="language-objectivec">// MyClass.h
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface MyClass : NSObject
+
+// Instance variables (traditionally in braces, but modern style uses properties)
+{
+    NSString *_privateVar;
+}
+
+// Properties
+@property (nonatomic, strong) NSString *name;
+@property (nonatomic, assign) NSInteger age;
+
+// Method declarations
+- (void)instanceMethod;
++ (void)classMethod;
+- (NSString *)methodWithParameter:(NSString *)param;
+
+@end</code></pre>
+        
+        <h4>Class Implementation</h4>
+        
+<pre><code class="language-objectivec">// MyClass.m
+#import "MyClass.h"
+
+@implementation MyClass
+
+// Method implementations
+- (void)instanceMethod {
+    NSLog(@"This is an instance method");
+    _privateVar = @"Accessed directly";
+    self.name = @"Using property";
+}
+
++ (void)classMethod {
+    NSLog(@"This is a class method");
+}
+
+- (NSString *)methodWithParameter:(NSString *)param {
+    return [NSString stringWithFormat:@"You passed: %@", param];
+}
+
+@end</code></pre>
+        
+        <h3>Key Syntax Elements</h3>
+        
+        <h4>Message Sending (Method Calling)</h4>
+        
+        <p>Unlike C's function calls, Objective-C uses message sending with square brackets:</p>
+        
+<pre><code class="language-objectivec">// Creating an instance
+MyClass *myObject = [[MyClass alloc] init];
+
+// Sending a message (calling a method)
+[myObject instanceMethod];
+
+// Sending a message with parameters
+NSString *result = [myObject methodWithParameter:@"Hello"];
+
+// Calling a class method
+[MyClass classMethod];</code></pre>
+        
+        <div class="mermaid">
+        sequenceDiagram
+            participant Client
+            participant Object
+            participant Objc_Runtime
+            
+            Client->>Objc_Runtime: objc_msgSend(object, @selector(method))
+            Objc_Runtime->>Object: Lookup method in class
+            Objc_Runtime->>Object: Execute method implementation
+            Object->>Client: Return result
+        </div>
+        
+        <h4>String Literals</h4>
+        
+        <p>Objective-C uses the <code>@</code> symbol for string literals, which creates <code>NSString</code> objects:</p>
+        
+<pre><code class="language-objectivec">NSString *greeting = @"Hello, World!";</code></pre>
+        
+        <h4>Collections</h4>
+        
+        <p>Objective-C provides shorthand syntax for creating collections:</p>
+        
+<pre><code class="language-objectivec">// Array
+NSArray *array = @[@"One", @"Two", @"Three"];
+
+// Dictionary
+NSDictionary *dict = @{
+    @"key1": @"value1",
+    @"key2": @"value2"
+};</code></pre>
+        
+        <h4>Nil and BOOL</h4>
+        
+        <p>In Objective-C:</p>
+        <ul>
+            <li><code>nil</code> is a null pointer to an object</li>
+            <li><code>BOOL</code> is a boolean type with values <code>YES</code> and <code>NO</code></li>
+        </ul>
+        
+<pre><code class="language-objectivec">// Safe to send messages to nil (they just return nil)
+NSString *nullString = nil;
+NSInteger length = [nullString length]; // No crash, length = 0
+
+// BOOL variables
+BOOL isActive = YES;
+if (isActive) {
+    NSLog(@"It's active!");
+}</code></pre>
+        
+        <h3>Foundation Framework</h3>
+        
+        <p>The Foundation framework provides essential classes like <code>NSString</code>, <code>NSArray</code>, <code>NSDictionary</code>, etc. It's imported with:</p>
+        
+<pre><code class="language-objectivec">#import &lt;Foundation/Foundation.h&gt;</code></pre>
+        
+        <h2 id="object-oriented-programming">2. Object-Oriented Programming in Objective-C</h2>
+        
+        <h3>Classes and Objects</h3>
+        
+        <p>Objective-C is an object-oriented language with classes and inheritance. Unlike many languages, it separates the interface (what the class does) from the implementation (how it does it).</p>
+        
+        <div class="mermaid">
+        classDiagram
+            class NSObject {
+                +description()
+                +isKindOfClass()
+                +performSelector()
+            }
+            class NSString {
+                -characters
+                +length()
+                +characterAtIndex()
+            }
+            class NSMutableString {
+                +appendString()
+                +replaceCharactersInRange()
+            }
+            
+            NSObject <|-- NSString
+            NSString <|-- NSMutableString
+        </div>
+        
+        <h4>Creating Objects</h4>
+        
+<pre><code class="language-objectivec">// Allocation and initialization
+MyClass *myObject = [[MyClass alloc] init];
+
+// Convenience method (if available)
+MyClass *anotherObject = [MyClass new];</code></pre>
+        
+        <h4>Inheritance</h4>
+        
+<pre><code class="language-objectivec">@interface ChildClass : ParentClass
+// Additional methods and properties
+@end</code></pre>
+        
+        <h3>Properties</h3>
+        
+        <p>Properties provide automatic getter/setter methods and help manage instance variables.</p>
+        
+<pre><code class="language-objectivec">// Property declaration
+@property (nonatomic, strong) NSString *name;
+
+// Under the hood, this creates:
+// - An instance variable _name
+// - A getter method -(NSString *)name
+// - A setter method -(void)setName:(NSString *)name</code></pre>
+        
+        <h4>Property Attributes</h4>
+        
+        <ul>
+            <li><strong>Access</strong>: <code>readonly</code>, <code>readwrite</code></li>
+            <li><strong>Storage</strong>: <code>strong</code>, <code>weak</code>, <code>copy</code>, <code>assign</code></li>
+            <li><strong>Atomicity</strong>: <code>atomic</code>, <code>nonatomic</code></li>
+        </ul>
+        
+<pre><code class="language-objectivec">// A thread-safe, read-only property that retains its object
+@property (atomic, readonly, strong) NSString *identifier;
+
+// A non-thread-safe property that copies the assigned value
+@property (nonatomic, copy) NSString *name;</code></pre>
+        
+        <h3>Categories and Extensions</h3>
+        
+        <p>Categories allow you to add methods to existing classes without subclassing.</p>
+        
+<pre><code class="language-objectivec">// NSString+Utilities.h
+@interface NSString (Utilities)
+- (BOOL)containsOnlyDigits;
+@end
+
+// NSString+Utilities.m
+@implementation NSString (Utilities)
+- (BOOL)containsOnlyDigits {
+    NSCharacterSet *nonDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
+    return [self rangeOfCharacterFromSet:nonDigits].location == NSNotFound;
+}
+@end</code></pre>
+        
+        <p>Class extensions (anonymous categories) allow you to declare private methods and properties:</p>
+        
+<pre><code class="language-objectivec">// In MyClass.m
+@interface MyClass ()
+// Private properties and methods
+@property (nonatomic, strong) NSString *internalState;
+- (void)privateMethod;
+@end</code></pre>
+        
+        <h3>Protocols</h3>
+        
+        <p>Protocols define a set of methods that a class must or may implement, similar to interfaces in other languages.</p>
+        
+<pre><code class="language-objectivec">@protocol DataSourceProtocol &lt;NSObject&gt;
+// Required methods
+@required
+- (NSInteger)numberOfItems;
+
+// Optional methods
+@optional
+- (NSString *)titleForItemAtIndex:(NSInteger)index;
+@end
+
+// Implementing a protocol
+@interface MyDataSource : NSObject &lt;DataSourceProtocol&gt;
+@end</code></pre>
+        
+        <h2 id="memory-management">3. Memory Management</h2>
+        
+        <p>Understanding memory management is crucial for security research, as memory-related bugs are common sources of vulnerabilities.</p>
+        
+        <h3>Manual Reference Counting (MRC)</h3>
+        
+        <p>Before iOS 5 and OS X 10.7, memory was managed manually using reference counting:</p>
+        
+<pre><code class="language-objectivec">// Creating and owning an object
+MyClass *obj = [[MyClass alloc] init]; // Reference count = 1
+
+// Increasing reference count
+[obj retain]; // Reference count = 2
+
+// Decreasing reference count
+[obj release]; // Reference count = 1
+
+// Decreasing reference count without potential deallocation
+[obj autorelease]; // Will be released later
+
+// When reference count reaches 0, dealloc is called automatically</code></pre>
+        
+        <div class="mermaid">
+        graph TD
+            A[Object Creation: alloc/init] -->|refCount = 1| B[Object in Use]
+            B -->|retain| C[refCount++]
+            C --> B
+            B -->|release| D[refCount--]
+            D --> B
+            B -->|autorelease| E[Added to Autorelease Pool]
+            E -->|Pool drain| D
+            D -->|refCount = 0| F[dealloc]
+            F --> G[Memory Freed]
+        </div>
+        
+        <h3>Automatic Reference Counting (ARC)</h3>
+        
+        <p>Modern Objective-C uses ARC, which automates the retain/release calls:</p>
+        
+<pre><code class="language-objectivec">// Under ARC
+MyClass *obj = [[MyClass alloc] init]; // Compiler manages reference count
+
+// No explicit release or retain calls
+// Objects are automatically released when no longer referenced</code></pre>
+        
+        <h3>Strong and Weak References</h3>
+        
+        <ul>
+            <li><strong>Strong references</strong> increase the reference count</li>
+            <li><strong>Weak references</strong> don't increase the reference count and automatically become <code>nil</code> when the object is deallocated</li>
+        </ul>
+        
+<pre><code class="language-objectivec">// Strong reference (default)
+@property (nonatomic, strong) NSObject *strongRef;
+
+// Weak reference (prevents retain cycles)
+@property (nonatomic, weak) NSObject *weakRef;</code></pre>
+        
+        <h3>Retain Cycles</h3>
+        
+        <p>Retain cycles occur when two objects hold strong references to each other, preventing both from being deallocated:</p>
+        
+<pre><code class="language-objectivec">@interface Parent : NSObject
+@property (nonatomic, strong) Child *child; // Strong reference
+@end
+
+@interface Child : NSObject
+@property (nonatomic, strong) Parent *parent; // Strong reference creates cycle
+@end
+
+// Fix with weak reference:
+@property (nonatomic, weak) Parent *parent; // Weak reference breaks cycle</code></pre>
+        
+        <div class="mermaid">
+        graph TD
+            subgraph "Retain Cycle"
+                A[Parent] -->|strong| B[Child]
+                B -->|strong| A
+            end
+            
+            subgraph "Solution"
+                C[Parent] -->|strong| D[Child]
+                D -->|weak| C
+            end
+        </div>
+        
+        <h2 id="runtime-system">4. Runtime System</h2>
+        
+        <p>The Objective-C runtime is dynamic, allowing for features like introspection, message forwarding, and method swizzling.</p>
+        
+        <h3>Dynamic Method Resolution</h3>
+        
+        <p>Objective-C doesn't use static binding; it resolves methods at runtime.</p>
+        
+<pre><code class="language-objectivec">// Instead of direct function calls, Objective-C uses messages
+[object method]; // Translates to objc_msgSend(object, @selector(method))</code></pre>
+        
+        <h3>Introspection</h3>
+        
+        <p>The runtime allows objects to be inspected at runtime:</p>
+        
+<pre><code class="language-objectivec">// Check if an object responds to a selector
+if ([object respondsToSelector:@selector(someMethod)]) {
+    [object someMethod];
+}
+
+// Check an object's class
+if ([object isKindOfClass:[NSString class]]) {
+    NSString *string = (NSString *)object;
+}</code></pre>
+        
+        <h3>Method Swizzling</h3>
+        
+        <p>Swizzling allows you to replace a method's implementation at runtime, a powerful technique for hooking system behavior:</p>
+        
+<pre><code class="language-objectivec">@implementation UIViewController (Tracking)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class class = [self class];
+        
+        // Get original method
+        SEL originalSelector = @selector(viewDidAppear:);
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        
+        // Get the swizzled method
+        SEL swizzledSelector = @selector(swizzled_viewDidAppear:);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        
+        // Exchange implementations
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    });
+}
+
+- (void)swizzled_viewDidAppear:(BOOL)animated {
+    // Call original implementation
+    [self swizzled_viewDidAppear:animated]; // This actually calls the original
+    
+    // Additional behavior
+    NSLog(@"View controller %@ appeared", self);
+}
+
+@end</code></pre>
+        
+        <div class="mermaid">
+        graph TD
+            A[Before Swizzling] --> B[viewDidAppear calls original implementation]
+            C[After Swizzling] --> D[viewDidAppear calls swizzled implementation]
+            D --> E[swizzled implementation calls original implementation]
+            D --> F[swizzled implementation adds logging]
+        </div>
+        
+        <h3>Associated Objects</h3>
+        
+        <p>The runtime allows attaching additional variables to existing objects:</p>
+        
+<pre><code class="language-objectivec">static char kAssociatedObjectKey;
+
+@implementation NSObject (AssociatedObject)
+
+- (void)setAssociatedObject:(id)object {
+    objc_setAssociatedObject(self, &kAssociatedObjectKey, object, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (id)associatedObject {
+    return objc_getAssociatedObject(self, &kAssociatedObjectKey);
+}
+
+@end</code></pre>
+        
+        <h2 id="interacting-with-cocoa">5. Interacting with Cocoa Frameworks</h2>
+        
+        <p>Cocoa is Apple's native object-oriented API for macOS development, consisting of Foundation, AppKit, and Core Data frameworks.</p>
+        
+        <div class="mermaid">
+        graph TD
+            A[Cocoa] --> B[Foundation]
+            A --> C[AppKit]
+            A --> D[Core Data]
+            B --> B1[NSString]
+            B --> B2[NSArray]
+            B --> B3[NSDictionary]
+            B --> B4[NSData]
+            C --> C1[NSWindow]
+            C --> C2[NSView]
+            C --> C3[NSControl]
+            D --> D1[NSManagedObject]
+            D --> D2[NSManagedObjectContext]
+        </div>
+        
+        <h3>Key Foundation Classes</h3>
+        
+        <ul>
+            <li><code>NSString</code> for text</li>
+            <li><code>NSArray</code>, <code>NSMutableArray</code> for ordered collections</li>
+            <li><code>NSDictionary</code>, <code>NSMutableDictionary</code> for key-value pairs</li>
+            <li><code>NSData</code> for binary data</li>
+            <li><code>NSNotification</code> for broadcasting information</li>
+            <li><code>NSUserDefaults</code> for persistent settings</li>
+        </ul>
+        
+        <h3>AppKit</h3>
+        
+        <p>AppKit provides UI components for macOS applications:</p>
+        
+<pre><code class="language-objectivec">// Creating a window
+NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 800, 600)
+                                               styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable
+                                                 backing:NSBackingStoreBuffered
+                                                   defer:NO];
+[window setTitle:@"My Window"];
+[window makeKeyAndOrderFront:nil];</code></pre>
+        
+        <h3>Common Patterns</h3>
+        
+        <h4>Delegation</h4>
+        
+        <p>Delegation allows one object to act on behalf of another:</p>
+        
+<pre><code class="language-objectivec">// Delegate protocol
+@protocol MyClassDelegate &lt;NSObject&gt;
+- (void)myClass:(MyClass *)myClass didSomethingWithResult:(NSString *)result;
+@end
+
+// In MyClass
+@interface MyClass : NSObject
+@property (nonatomic, weak) id&lt;MyClassDelegate&gt; delegate;
+@end
+
+// Using delegation
+- (void)doSomething {
+    // Do work
+    NSString *result = @"result";
+    
+    // Notify delegate
+    if ([self.delegate respondsToSelector:@selector(myClass:didSomethingWithResult:)]) {
+        [self.delegate myClass:self didSomethingWithResult:result];
+    }
+}</code></pre>
+        
+        <div class="mermaid">
+        sequenceDiagram
+            participant MyClass
+            participant Delegate
+            
+            MyClass->>MyClass: doSomething()
+            MyClass->>MyClass: Perform work
+            MyClass->>Delegate: myClass:didSomethingWithResult:
+            Delegate->>Delegate: Handle result
+        </div>
+        
+        <h4>Target-Action</h4>
+        
+        <p>Used primarily for handling user interface events:</p>
+        
+<pre><code class="language-objectivec">// Creating a button with target-action
+NSButton *button = [NSButton buttonWithTitle:@"Click Me" target:self action:@selector(buttonClicked:)];
+
+// Action method
+- (void)buttonClicked:(id)sender {
+    NSLog(@"Button clicked!");
+}</code></pre>
+        
+        <h4>Notifications</h4>
+        
+        <p>Broadcast mechanism for communicating between objects:</p>
+        
+<pre><code class="language-objectivec">// Register for a notification
+[[NSNotificationCenter defaultCenter] addObserver:self
+                                         selector:@selector(handleNotification:)
+                                             name:@"MyCustomNotification"
+                                           object:nil];
+
+// Post a notification
+[[NSNotificationCenter defaultCenter] postNotificationName:@"MyCustomNotification"
+                                                    object:self
+                                                  userInfo:@{@"key": @"value"}];
+
+// Handle a notification
+- (void)handleNotification:(NSNotification *)notification {
+    NSLog(@"Received notification: %@", notification.userInfo);
+}
+
+// Don't forget to unregister
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}</code></pre>
+        
+        <div class="mermaid">
+        graph TD
+            A[Object A] -->|Post Notification| B[NSNotificationCenter]
+            B -->|Broadcast| C[Observer 1]
+            B -->|Broadcast| D[Observer 2]
+            B -->|Broadcast| E[Observer 3]
+        </div>
+        
+        <h4>Key-Value Observing (KVO)</h4>
+        
+        <p>Observe changes to object properties:</p>
+        
+<pre><code class="language-objectivec">// Start observing
+[object addObserver:self
+         forKeyPath:@"propertyName"
+            options:NSKeyValueObservingOptionNew
+            context:NULL];
+
+// Handle observations
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary *)change
+                       context:(void *)context {
+    if ([keyPath isEqualToString:@"propertyName"]) {
+        NSLog(@"Property changed to: %@", change[NSKeyValueChangeNewKey]);
+    }
+}
+
+// Stop observing
+[object removeObserver:self forKeyPath:@"propertyName"];</code></pre>
+        
+        <h2 id="security-implications">6. Security Implications</h2>
+        
+        <p>Objective-C's dynamic nature has several security implications:</p>
+        
+        <h3>Runtime Manipulation</h3>
+        
+        <p>The dynamic runtime allows for runtime manipulation of classes and methods, which can be used for:</p>
+        
+        <ul>
+            <li><strong>Hooking system APIs</strong>: Method swizzling allows security researchers to intercept and modify system behavior</li>
+            <li><strong>Bypassing security checks</strong>: Runtime modification can sometimes bypass application security controls</li>
+            <li><strong>Adding backdoors</strong>: Malware can inject code into running applications</li>
+        </ul>
+        
+        <div class="mermaid">
+        graph TD
+            A[Runtime Manipulation] --> B[Method Swizzling]
+            A --> C[Class Replacement]
+            A --> D[Associated Objects]
+            B --> E[Security Implications]
+            C --> E
+            D --> E
+            E --> F[API Monitoring]
+            E --> G[Security Bypass]
+            E --> H[Malicious Code Injection]
+        </div>
+        
+        <h3>Common Vulnerabilities</h3>
+        
+        <h4>Type Confusion</h4>
+        
+        <p>The loose typing in Objective-C can lead to type confusion vulnerabilities:</p>
+        
+<pre><code class="language-objectivec">// This will compile but might crash at runtime
+id anyObject = @"string";
+[anyObject intValue]; // Runtime crash if anyObject is not a number</code></pre>
+        
+        <h4>Format String Vulnerabilities</h4>
+        
+        <p>Objective-C uses format strings that can lead to vulnerabilities if user input is included:</p>
+        
+<pre><code class="language-objectivec">// Vulnerable code
+NSString *userInput = @"%x %x %x"; // Could be controlled by attacker
+NSLog(userInput); // Format string vulnerability
+
+// Safe code
+NSLog(@"%@", userInput); // Properly escaped</code></pre>
+        
+        <h4>Memory Corruption</h4>
+        
+        <p>Memory management issues can lead to exploitable conditions:</p>
+        
+<pre><code class="language-objectivec">// Use-after-free scenario
+id object = [[NSObject alloc] init];
+[object release]; // Reference count = 0, object deallocated
+[object description]; // Use after free, might crash or be exploitable</code></pre>
+        
+        <h4>Method Confusion</h4>
+        
+        <p>Improper method checking can lead to security issues:</p>
+        
+<pre><code class="language-objectivec">// Attacker might try to call methods like performSelector: with unexpected selectors
+[someObject performSelector:NSSelectorFromString(@"privateMethod")];</code></pre>
+        
+        <h2 id="hands-on-exercises">7. Hands-on Exercises</h2>
+        
+        <h3>Exercise 1: Create a Basic Class</h3>
+        
+        <p><strong>Task</strong>: Create a custom class with properties, methods, and proper memory management.</p>
+        
+        <p>Create two files: <code>CustomObject.h</code> and <code>CustomObject.m</code>:</p>
+        
+        <h4>CustomObject.h</h4>
+        
+<pre><code class="language-objectivec">// CustomObject.h
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface CustomObject : NSObject
+
+@property (nonatomic, copy) NSString *identifier;
+@property (nonatomic, strong) NSMutableArray *dataItems;
+@property (nonatomic, assign) BOOL isSecure;
+
+- (instancetype)initWithIdentifier:(NSString *)identifier;
+- (void)addItem:(id)item;
+- (void)removeItemAtIndex:(NSUInteger)index;
+- (void)printItems;
+
+@end</code></pre>
+        
+        <h4>CustomObject.m</h4>
+        
+<pre><code class="language-objectivec">// CustomObject.m
+#import "CustomObject.h"
+
+@implementation CustomObject
+
+- (instancetype)initWithIdentifier:(NSString *)identifier {
+    self = [super init];
+    if (self) {
+        _identifier = [identifier copy];
+        _dataItems = [NSMutableArray array];
+        _isSecure = NO;
+    }
+    return self;
+}
+
+- (void)addItem:(id)item {
+    if (item) {
+        [self.dataItems addObject:item];
+    }
+}
+
+- (void)removeItemAtIndex:(NSUInteger)index {
+    if (index < [self.dataItems count]) {
+        [self.dataItems removeObjectAtIndex:index];
+    }
+}
+
+- (void)printItems {
+    NSLog(@"Items for %@:", self.identifier);
+    for (id item in self.dataItems) {
+        NSLog(@"- %@", item);
+    }
+}
+
+@end</code></pre>
+        
+        <h4>main.m</h4>
+        
+<pre><code class="language-objectivec">// main.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "CustomObject.h"
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        CustomObject *object = [[CustomObject alloc] initWithIdentifier:@"test123"];
+        [object addItem:@"Sensitive data"];
+        [object addItem:@"More data"];
+        [object printItems];
+        [object removeItemAtIndex:0];
+        [object printItems];
+    }
+    return 0;
+}</code></pre>
+        
+        <h4>Compilation and Running Instructions</h4>
+        
+        <ol>
+            <li>
+                <p>Create a directory for the project:</p>
+<pre><code class="language-bash">mkdir CustomObjectDemo
+cd CustomObjectDemo</code></pre>
+            </li>
+            <li>
+                <p>Create the three source files with the content above:</p>
+<pre><code class="language-bash">touch CustomObject.h CustomObject.m main.m</code></pre>
+            </li>
+            <li>
+                <p>Use a text editor to add the code to each file.</p>
+            </li>
+            <li>
+                <p>Compile the program:</p>
+<pre><code class="language-bash">clang -framework Foundation main.m CustomObject.m -o CustomObjectDemo</code></pre>
+            </li>
+            <li>
+                <p>Run the program:</p>
+<pre><code class="language-bash">./CustomObjectDemo</code></pre>
+            </li>
+        </ol>
+        
+        <p><strong>Expected Output</strong>:</p>
+        
+<pre><code>Items for test123:
+- Sensitive data
+- More data
+Items for test123:
+- More data</code></pre>
+
+        <p class="exercise-solution-link">
+            <a href="../solutions/lesson2_solutions.html#exercise1-solutions">View solution for Exercise 1</a>
+        </p>
+        
+        <h3>Exercise 2: Method Swizzling for Security Analysis</h3>
+        
+        <p><strong>Task</strong>: Use method swizzling to log all NSUserDefaults accesses.</p>
+        
+        <p>Create two files: <code>NSUserDefaults+Logging.h</code> and <code>NSUserDefaults+Logging.m</code>:</p>
+        
+        <h4>NSUserDefaults+Logging.h</h4>
+        
+<pre><code class="language-objectivec">// NSUserDefaults+Logging.h
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface NSUserDefaults (Logging)
+@end</code></pre>
+        
+        <h4>NSUserDefaults+Logging.m</h4>
+        
+<pre><code class="language-objectivec">// NSUserDefaults+Logging.m
+#import "NSUserDefaults+Logging.h"
+#import &lt;objc/runtime.h&gt;
+
+@implementation NSUserDefaults (Logging)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        // Swizzle objectForKey:
+        Class class = [self class];
+        
+        SEL originalSelector = @selector(objectForKey:);
+        SEL swizzledSelector = @selector(logged_objectForKey:);
+        
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+        
+        // Swizzle setObject:forKey:
+        SEL originalSetSelector = @selector(setObject:forKey:);
+        SEL swizzledSetSelector = @selector(logged_setObject:forKey:);
+        
+        Method originalSetMethod = class_getInstanceMethod(class, originalSetSelector);
+        Method swizzledSetMethod = class_getInstanceMethod(class, swizzledSetSelector);
+        
+        method_exchangeImplementations(originalSetMethod, swizzledSetMethod);
+    });
+}
+
+- (id)logged_objectForKey:(NSString *)defaultName {
+    id result = [self logged_objectForKey:defaultName]; // Original implementation
+    NSLog(@"[READ] NSUserDefaults: %@ = %@", defaultName, result);
+    return result;
+}
+
+- (void)logged_setObject:(id)value forKey:(NSString *)defaultName {
+    NSLog(@"[WRITE] NSUserDefaults: %@ = %@", defaultName, value);
+    [self logged_setObject:value forKey:defaultName]; // Original implementation
+}
+
+@end</code></pre>
+        
+        <h4>main.m</h4>
+        
+<pre><code class="language-objectivec">// main.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "NSUserDefaults+Logging.h"
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        [[NSUserDefaults standardUserDefaults] setObject:@"123456" forKey:@"password"];
+        NSString *value = [[NSUserDefaults standardUserDefaults] objectForKey:@"password"];
+        NSLog(@"Retrieved: %@", value);
+    }
+    return 0;
+}</code></pre>
+        
+        <h4>Compilation and Running Instructions</h4>
+        
+        <ol>
+            <li>
+                <p>Create a directory for the project:</p>
+<pre><code class="language-bash">mkdir UserDefaultsLogging
+cd UserDefaultsLogging</code></pre>
+            </li>
+            <li>
+                <p>Create the three source files with the content above:</p>
+<pre><code class="language-bash">touch NSUserDefaults+Logging.h NSUserDefaults+Logging.m main.m</code></pre>
+            </li>
+            <li>
+                <p>Use a text editor to add the code to each file.</p>
+            </li>
+            <li>
+                <p>Compile the program:</p>
+<pre><code class="language-bash">clang -framework Foundation main.m NSUserDefaults+Logging.m -o UserDefaultsLogging</code></pre>
+            </li>
+            <li>
+                <p>Run the program:</p>
+<pre><code class="language-bash">./UserDefaultsLogging</code></pre>
+            </li>
+        </ol>
+        
+        <p><strong>Expected Output</strong>:</p>
+        
+<pre><code>[WRITE] NSUserDefaults: password = 123456
+[READ] NSUserDefaults: password = 123456
+Retrieved: 123456</code></pre>
+
+        <p class="exercise-solution-link">
+            <a href="../solutions/lesson2_solutions.html#exercise2-solutions">View solution for Exercise 2</a>
+        </p>
+        
+        <h3>Exercise 3: Analyzing Object Runtime Information</h3>
+        
+        <p><strong>Task</strong>: Write a utility to inspect Objective-C objects at runtime.</p>
+        
+        <p>Create two files: <code>ObjectAnalyzer.h</code> and <code>ObjectAnalyzer.m</code>:</p>
+        
+        <h4>ObjectAnalyzer.h</h4>
+        
+<pre><code class="language-objectivec">// ObjectAnalyzer.h
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface ObjectAnalyzer : NSObject
+
++ (void)analyzeObject:(id)object;
++ (NSArray *)methodsForClass:(Class)class;
++ (NSArray *)propertiesForClass:(Class)class;
++ (NSArray *)ivarsForClass:(Class)class;
+
+@end</code></pre>
+        
+        <h4>ObjectAnalyzer.m</h4>
+        
+<pre><code class="language-objectivec">// ObjectAnalyzer.m
+#import "ObjectAnalyzer.h"
+#import &lt;objc/runtime.h&gt;
+
+@implementation ObjectAnalyzer
+
++ (void)analyzeObject:(id)object {
+    if (!object) {
+        NSLog(@"Object is nil");
+        return;
+    }
+    
+    Class class = [object class];
+    NSLog(@"Object of class: %@", NSStringFromClass(class));
+    
+    // Get properties
+    NSArray *properties = [self propertiesForClass:class];
+    NSLog(@"Properties (%lu):", (unsigned long)properties.count);
+    for (NSString *property in properties) {
+        NSLog(@"  %@", property);
+    }
+    
+    // Get methods
+    NSArray *methods = [self methodsForClass:class];
+    NSLog(@"Methods (%lu):", (unsigned long)methods.count);
+    for (NSString *method in methods) {
+        NSLog(@"  %@", method);
+    }
+    
+    // Get ivars
+    NSArray *ivars = [self ivarsForClass:class];
+    NSLog(@"Instance variables (%lu):", (unsigned long)ivars.count);
+    for (NSString *ivar in ivars) {
+        NSLog(@"  %@", ivar);
+    }
+}
+
++ (NSArray *)methodsForClass:(Class)class {
+    NSMutableArray *methodList = [NSMutableArray array];
+    unsigned int methodCount = 0;
+    Method *methods = class_copyMethodList(class, &methodCount);
+    
+    for (unsigned int i = 0; i < methodCount; i++) {
+        SEL selector = method_getName(methods[i]);
+        NSString *methodName = NSStringFromSelector(selector);
+        [methodList addObject:methodName];
+    }
+    
+    free(methods);
+    return [methodList copy];
+}
+
++ (NSArray *)propertiesForClass:(Class)class {
+    NSMutableArray *propertyList = [NSMutableArray array];
+    unsigned int propertyCount = 0;
+    objc_property_t *properties = class_copyPropertyList(class, &propertyCount);
+    
+    for (unsigned int i = 0; i < propertyCount; i++) {
+        const char *propertyName = property_getName(properties[i]);
+        NSString *name = [NSString stringWithUTF8String:propertyName];
+        [propertyList addObject:name];
+    }
+    
+    free(properties);
+    return [propertyList copy];
+}
+
++ (NSArray *)ivarsForClass:(Class)class {
+    NSMutableArray *ivarList = [NSMutableArray array];
+    unsigned int ivarCount = 0;
+    Ivar *ivars = class_copyIvarList(class, &ivarCount);
+    
+    for (unsigned int i = 0; i < ivarCount; i++) {
+        const char *ivarName = ivar_getName(ivars[i]);
+        NSString *name = [NSString stringWithUTF8String:ivarName];
+        [ivarList addObject:name];
+    }
+    
+    free(ivars);
+    return [ivarList copy];
+}
+
+@end</code></pre>
+        
+        <h4>main.m</h4>
+        
+<pre><code class="language-objectivec">// main.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "ObjectAnalyzer.h"
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        NSLog(@"Analyzing NSString...\n");
+        NSString *testString = @"Test String";
+        [ObjectAnalyzer analyzeObject:testString];
+        
+        NSLog(@"\nAnalyzing NSUserDefaults...\n");
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [ObjectAnalyzer analyzeObject:defaults];
+    }
+    return 0;
+}</code></pre>
+        
+        <h4>Compilation and Running Instructions</h4>
+        
+        <ol>
+            <li>
+                <p>Create a directory for the project:</p>
+<pre><code class="language-bash">mkdir ObjectAnalyzer
+cd ObjectAnalyzer</code></pre>
+            </li>
+            <li>
+                <p>Create the three source files with the content above:</p>
+<pre><code class="language-bash">touch ObjectAnalyzer.h ObjectAnalyzer.m main.m</code></pre>
+            </li>
+            <li>
+                <p>Use a text editor to add the code to each file.</p>
+            </li>
+            <li>
+                <p>Compile the program:</p>
+<pre><code class="language-bash">clang -framework Foundation main.m ObjectAnalyzer.m -o ObjectAnalyzer</code></pre>
+            </li>
+            <li>
+                <p>Run the program:</p>
+<pre><code class="language-bash">./ObjectAnalyzer</code></pre>
+            </li>
+        </ol>
+        
+        <p><strong>Expected Output</strong> (abbreviated):</p>
+        
+<pre><code>Analyzing NSString...
+
+Object of class: NSTaggedPointerString
+Properties (0):
+Methods (30+):
+  length
+  characterAtIndex:
+  getCharacters:range:
+  ...
+Instance variables (0):
+
+Analyzing NSUserDefaults...
+
+Object of class: NSUserDefaults
+Properties (0):
+Methods (20+):
+  objectForKey:
+  setObject:forKey:
+  removeObjectForKey:
+  ...
+Instance variables (2+):
+  _search
+  _domains
+  ...</code></pre>
+        
+        <p>Note: The exact output will vary depending on your macOS version as the internal structure of classes can change between versions.</p>
+
+        <p class="exercise-solution-link">
+            <a href="../solutions/lesson2_solutions.html#exercise3-solutions">View solution for Exercise 3</a>
+        </p>
+        
+        <h3>Exercise 4: Simulated Security Vulnerability</h3>
+        
+        <p><strong>Task</strong>: Create and then fix a potential memory vulnerability.</p>
+        
+        <p>Create a file <code>Vulnerable.h</code>:</p>
+        
+<pre><code class="language-objectivec">// Vulnerable.h
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface Vulnerable : NSObject
+
+- (void)processUserInput:(NSString *)input;
+- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters;
+
+@end</code></pre>
+        
+        <p>Create <code>Vulnerable_Buggy.m</code> (with vulnerability):</p>
+        
+<pre><code class="language-objectivec">// Vulnerable_Buggy.m
+#import "Vulnerable.h"
+
+@implementation Vulnerable
+
+- (void)processUserInput:(NSString *)input {
+    // VULNERABLE: Format string vulnerability
+    NSLog(input); // Directly using user input as format string
+    
+    // VULNERABLE: Unbounded array access
+    NSArray *parts = [input componentsSeparatedByString:@","];
+    if ([parts count] > 0) {
+        // No bounds checking
+        NSString *firstPart = parts[0];
+        NSString *secondPart = parts[1]; // Could crash if parts has only one element
+        NSLog(@"Parts: %@ and %@", firstPart, secondPart);
+    }
+}
+
+- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters {
+    // VULNERABLE: Memory management issue
+    NSMutableString *result = [[NSMutableString alloc] initWithString:format];
+    
+    for (id param in parameters) {
+        [result appendFormat:@" %@", param];
+    }
+    
+    // Missing [result autorelease] in manual reference counting
+    return result; // LEAK: Caller doesn't know they need to release
+}
+
+@end</code></pre>
+        
+        <p>Create <code>Vulnerable_Fixed.m</code> (corrected version):</p>
+        
+<pre><code class="language-objectivec">// Vulnerable_Fixed.m
+#import "Vulnerable.h"
+
+@implementation Vulnerable
+
+- (void)processUserInput:(NSString *)input {
+    // FIXED: Format string vulnerability
+    NSLog(@"%@", input); // Input used as parameter, not format string
+    
+    // FIXED: Bounded array access
+    NSArray *parts = [input componentsSeparatedByString:@","];
+    if ([parts count] > 0) {
+        NSString *firstPart = parts[0];
+        if ([parts count] > 1) {
+            NSString *secondPart = parts[1]; // Bounds checking added
+            NSLog(@"Parts: %@ and %@", firstPart, secondPart);
+        } else {
+            NSLog(@"Only one part: %@", firstPart);
+        }
+    }
+}
+
+- (NSString *)formatLogMessage:(NSString *)format withParameters:(NSArray *)parameters {
+    // FIXED: Using ARC (no explicit memory management needed)
+    NSMutableString *result = [[NSMutableString alloc] initWithString:format];
+    
+    for (id param in parameters) {
+        [result appendFormat:@" %@", param];
+    }
+    
+    return result; // ARC properly manages the memory
+}
+
+@end</code></pre>
+        
+        <p>Create <code>main_buggy.m</code> to test the buggy version:</p>
+        
+<pre><code class="language-objectivec">// main_buggy.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "Vulnerable.h"
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        Vulnerable *vuln = [[Vulnerable alloc] init];
+        
+        // Test format string vulnerability
+        NSLog(@"Testing format string vulnerability:");
+        [vuln processUserInput:@"Normal string"];
+        [vuln processUserInput:@"%p %p %p"]; // Format string attack
+        
+        // Test array bounds vulnerability
+        NSLog(@"\nTesting array bounds vulnerability:");
+        [vuln processUserInput:@"item1,item2"];
+        [vuln processUserInput:@"singleitem"]; // Will crash here
+        
+        // Memory leak test - not easily visible
+        NSLog(@"\nTesting memory management issue:");
+        NSString *message = [vuln formatLogMessage:@"Log:" 
+                             withParameters:@[@"param1", @"param2"]];
+        NSLog(@"Message: %@", message);
+    }
+    return 0;
+}</code></pre>
+        
+        <p>Create <code>main_fixed.m</code> to test the fixed version:</p>
+        
+<pre><code class="language-objectivec">// main_fixed.m
+#import &lt;Foundation/Foundation.h&gt;
+#import "Vulnerable.h"
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        Vulnerable *vuln = [[Vulnerable alloc] init];
+        
+        // Test format string vulnerability
+        NSLog(@"Testing format string vulnerability:");
+        [vuln processUserInput:@"Normal string"];
+        [vuln processUserInput:@"%p %p %p"]; // Safe now
+        
+        // Test array bounds vulnerability
+        NSLog(@"\nTesting array bounds vulnerability:");
+        [vuln processUserInput:@"item1,item2"];
+        [vuln processUserInput:@"singleitem"]; // Safe now
+        
+        // Memory leak test - fixed with ARC
+        NSLog(@"\nTesting memory management issue:");
+        NSString *message = [vuln formatLogMessage:@"Log:" 
+                             withParameters:@[@"param1", @"param2"]];
+        NSLog(@"Message: %@", message);
+    }
+    return 0;
+}</code></pre>
+        
+        <h4>Compilation and Running Instructions</h4>
+        
+        <ol>
+            <li>
+                <p>Create a directory for the project:</p>
+<pre><code class="language-bash">mkdir VulnerableDemo
+cd VulnerableDemo</code></pre>
+            </li>
+            <li>
+                <p>Create the source files:</p>
+<pre><code class="language-bash">touch Vulnerable.h Vulnerable_Buggy.m Vulnerable_Fixed.m main_buggy.m main_fixed.m</code></pre>
+            </li>
+            <li>
+                <p>Use a text editor to add the code to each file.</p>
+            </li>
+            <li>
+                <p>Compile the buggy version:</p>
+<pre><code class="language-bash">clang -framework Foundation main_buggy.m Vulnerable_Buggy.m -o vulnerable_buggy</code></pre>
+            </li>
+            <li>
+                <p>Compile the fixed version:</p>
+<pre><code class="language-bash">clang -framework Foundation main_fixed.m Vulnerable_Fixed.m -o vulnerable_fixed -fobjc-arc</code></pre>
+            </li>
+            <li>
+                <p>Run the buggy version (it will crash):</p>
+<pre><code class="language-bash">./vulnerable_buggy</code></pre>
+            </li>
+        </ol>
+        
+        <p><strong>Expected Output (Buggy)</strong>:</p>
+        
+<pre><code>Testing format string vulnerability:
+Normal string
+0x100000000 0x200000000 0x300000000  # Actual pointers will vary
+
+Testing array bounds vulnerability:
+Parts: item1 and item2
+[Crash occurs here]</code></pre>
+        
+        <ol start="7">
+            <li>
+                <p>Run the fixed version:</p>
+<pre><code class="language-bash">./vulnerable_fixed</code></pre>
+            </li>
+        </ol>
+        
+        <p><strong>Expected Output (Fixed)</strong>:</p>
+        
+<pre><code>Testing format string vulnerability:
+Normal string
+%p %p %p
+
+Testing array bounds vulnerability:
+Parts: item1 and item2
+Only one part: singleitem
+
+Testing memory management issue:
+Message: Log: param1 param2</code></pre>
+
+        <p class="exercise-solution-link">
+            <a href="../solutions/lesson2_solutions.html#exercise4-solutions">View solution for Exercise 4</a>
+        </p>
+        
+        <h2 id="additional-resources">8. Additional Resources</h2>
+        
+        <h3>Books and Documentation</h3>
+        
+        <ul>
+            <li><a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/ProgrammingWithObjectiveC/Introduction/Introduction.html">Programming with Objective-C</a> - Apple's official guide</li>
+            <li><a href="https://www.amazon.com/Effective-Objective-C-2-0-Specific-Development/dp/0321917014">Effective Objective-C 2.0</a> by Matt Galloway</li>
+            <li><a href="https://www.amazon.com/Advanced-Mac-OS-Programming-Guides/dp/0321706250">Advanced Mac OS X Programming</a> by Mark Dalrymple and Scott Knaster</li>
+        </ul>
+        
+        <h3>Online Resources</h3>
+        
+        <ul>
+            <li><a href="https://nshipster.com/">NSHipster</a> - Articles on Objective-C and Cocoa</li>
+            <li><a href="https://www.objc.io/">Objc.io</a> - In-depth articles on iOS and macOS development</li>
+            <li><a href="https://developer.apple.com/documentation/objectivec/objective-c_runtime">Objective-C Runtime Reference</a> - Apple's official runtime documentation</li>
+        </ul>
+        
+        <h3>Tools for Security Research</h3>
+        
+        <ul>
+            <li><a href="https://www.hopperapp.com/">Hopper Disassembler</a> - Reverse engineering tool that works well with Objective-C</li>
+            <li><a href="https://github.com/nygard/class-dump">class-dump</a> - Extract Objective-C class interfaces from compiled binaries</li>
+            <li><a href="https://frida.re/">Frida</a> - Dynamic instrumentation toolkit for iOS and macOS</li>
+            <li><a href="https://hex-rays.com/ida-pro/">IDA Pro</a> - Industry-standard disassembler with Objective-C support</li>
+        </ul>
+        
+        <h3>Video Tutorials</h3>
+        
+        <ul>
+            <li><a href="https://www.youtube.com/watch?v=5esQqZIJ83g">Objective-C for Swift Developers</a> - Helps Swift programmers learn Objective-C</li>
+            <li><a href="https://www.youtube.com/watch?v=uimP_KvtHx4">Objective-C Runtime Programming Guide</a> - Deep dive into the Objective-C runtime</li>
+        </ul>
+        
+        <h2>Conclusion</h2>
+        
+        <p>This lesson has covered the fundamentals of Objective-C, including its syntax, object-oriented features, memory management, runtime system, and interaction with Cocoa frameworks. You've also learned about the security implications of Objective-C's dynamic nature and practiced with hands-on exercises relevant to security research.</p>
+        
+        <p>In our next lesson, we'll explore the macOS security model, including System Integrity Protection, Gatekeeper, code signing, and sandboxing mechanisms, where you'll see how your Objective-C knowledge applies to understanding and analyzing macOS security features.</p>
+        
+        <div class="lesson-navigation">
+            <div class="prev-lesson">
+                <a href="lesson1.html">← Previous: MacOS Fundamentals</a>
+            </div>
+            <div class="next-lesson">
+                <a href="lesson3.html">Next: MacOS Security Model →</a>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 macOS Security Research Preparation Guide</p>
+        <p>
+            <a href="../index.html">Home</a> | 
+            <a href="../solutions/lesson2_solutions.html">Solutions for Lesson 2</a>
+        </p>
+    </footer>
+    
+    <!-- Syntax highlighting JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+</body>
+</html>

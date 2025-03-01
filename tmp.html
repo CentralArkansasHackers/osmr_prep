@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>macOS Security Research - Lesson 2: Objective-C Primer</title>
+    
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <!-- Syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css">
+    
+    <!-- Mermaid JS for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="../js/main.js" defer></script>
+</head>
+<body>
+    <header>
+        <div class="nav">
+            <ul>
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="lesson1.html">1. MacOS Fundamentals</a></li>
+                <li><a href="lesson2.html" class="current">2. Objective-C Primer</a></li>
+                <li><a href="lesson3.html">3. MacOS Security Model</a></li>
+                <li><a href="lesson4.html">4. Development Environment</a></li>
+                <li><a href="lesson5.html">5. Reverse Engineering</a></li>
+                <li><a href="lesson6.html">6. Exploit Development</a></li>
+                <li><a href="lesson7.html">7. Privilege Escalation</a></li>
+                <li><a href="lesson8.html">8. Kernel Exploitation</a></li>
+                <li><a href="lesson9.html">9. Advanced Topics</a></li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h1>Lesson 2: Objective-C Primer</h1>
+        
+        <div class="introduction">
+            <p>Objective-C is a fundamental programming language for macOS security research. Despite the increasing adoption of Swift in Apple's ecosystem, Objective-C remains critically important because most system frameworks, legacy applications, and security-relevant components are written in it. Understanding Objective-C is essential for effectively analyzing, reverse engineering, and exploiting macOS applications and system components.</p>
+        </div>
+        
+        <div class="solutions-link">
+            <a href="../solutions/lesson2_solutions.html" class="btn btn-primary">
+                <span class="icon">📝</span> View Solutions for this Lesson
+            </a>
+        </div>
+
+        <h2>Table of Contents</h2>
+        <ol>
+            <li><a href="#language-fundamentals">Language Fundamentals</a></li>
+            <li><a href="#object-oriented-programming-in-objective-c">Object-Oriented Programming in Objective-C</a></li>
+            <li><a href="#memory-management">Memory Management</a></li>
+            <li><a href="#runtime-system">Runtime System</a></li>
+            <li><a href="#interacting-with-cocoa-frameworks">Interacting with Cocoa Frameworks</a></li>
+            <li><a href="#security-implications">Security Implications</a></li>
+            <li><a href="#hands-on-exercises">Hands-on Exercises</a></li>
+            <li><a href="#additional-resources">Additional Resources</a></li>
+        </ol>
+        
+        <section id="language-fundamentals">
+            <h2>1. Language Fundamentals</h2>
+            <p>Objective-C is a superset of C that adds object-oriented programming capabilities and a dynamic runtime. This means that all valid C code is also valid Objective-C code.</p>
+            
+            <h3>Basic Syntax</h3>
+            <pre><code class="language-objectivec">
+// MyClass.h
+#import <Foundation/Foundation.h>
+@interface MyClass : NSObject
+{
+    NSString *_privateVar;
+}
+@property (nonatomic, strong) NSString *name;
+@property (nonatomic, assign) NSInteger age;
+- (void)instanceMethod;
++ (void)classMethod;
+- (NSString *)methodWithParameter:(NSString *)param;
+@end
+            </code></pre>
+            <pre><code class="language-objectivec">
+// MyClass.m
+#import "MyClass.h"
+@implementation MyClass
+- (void)instanceMethod {
+    NSLog(@"This is an instance method");
+    _privateVar = @"Accessed directly";
+    self.name = @"Using property";
+}
++ (void)classMethod {
+    NSLog(@"This is a class method");
+}
+- (NSString *)methodWithParameter:(NSString *)param {
+    return [NSString stringWithFormat:@"You passed: %@", param];
+}
+@end
+            </code></pre>
+        </section>
+        
+        <section id="memory-management">
+            <h2>3. Memory Management</h2>
+            <p>Understanding memory management is crucial for security research, as memory-related bugs are common sources of vulnerabilities.</p>
+            <pre><code class="language-objectivec">
+// Retain Cycle Example
+@interface Parent : NSObject
+@property (nonatomic, strong) Child *child;
+@end
+@interface Child : NSObject
+@property (nonatomic, weak) Parent *parent;
+@end
+            </code></pre>
+        </section>
+
+        <section id="hands-on-exercises">
+            <h2>7. Hands-on Exercises</h2>
+            <p>Let's practice with some exercises relevant to security research.</p>
+            <pre><code class="language-objectivec">
+// Exercise 1: Basic Class Implementation
+@interface CustomObject : NSObject
+@property (nonatomic, copy) NSString *identifier;
+@end
+@implementation CustomObject
+@end
+            </code></pre>
+        </section>
+    </main>
+</body>
+</html>
+
